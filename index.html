@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TPMC IT Concern Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F6F4EF;
+    --surface: #FFFFFF;
+    --surface-2: #F1EFE8;
+    --ink: #1C2B2A;
+    --ink-secondary: #5F5E5A;
+    --ink-muted: #888780;
+    --border: #D3D1C7;
+    --teal: #0F6E56;
+    --teal-dark: #085041;
+    --teal-tint: #E1F5EE;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 1.5rem 2rem 3rem; }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 12px; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0; }
+  .sub { font-size: 13px; color: var(--ink-secondary); margin: 4px 0 0; }
+  .tabs { display: flex; gap: 6px; }
+  .tab-btn {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 8px 14px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  .tab-btn.active { border-color: var(--teal); color: var(--teal-dark); background: var(--teal-tint); }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+  }
+  label { display: block; font-size: 13px; color: var(--ink-secondary); margin-bottom: 4px; }
+  input, select, textarea {
+    width: 100%;
+    font-family: inherit;
+    font-size: 14px;
+    padding: 9px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--ink);
+  }
+  textarea { min-height: 90px; resize: vertical; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .field { margin-bottom: 12px; }
+  button.primary {
+    background: var(--teal);
+    color: #fff;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    width: 100%;
+  }
+  button.primary:hover { background: var(--teal-dark); }
+  .ticket {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+  .ticket-stub {
+    width: 56px;
+    flex-shrink: 0;
+    background: var(--teal-dark);
+    color: var(--teal-tint);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    writing-mode: vertical-rl;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    padding: 10px 0;
+  }
+  .ticket-body { flex: 1; padding: 14px 16px; min-width: 0; }
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 3px 9px;
+    border-radius: 999px;
+    margin-left: 6px;
+  }
+  .p-Low { background: #EAF3DE; color: #27500A; }
+  .p-Medium { background: #FAEEDA; color: #633806; }
+  .p-High { background: #FAECE7; color: #712B13; }
+  .p-Urgent { background: #FCEBEB; color: #501313; }
+  .s-Open { background: #E6F1FB; color: #042C53; }
+  .s-In.progress, .s-In-progress { background: #FAEEDA; color: #412402; }
+  .s-Resolved { background: #E1F5EE; color: #04342C; }
+  .meta { font-size: 12px; color: var(--ink-muted); margin: 2px 0; }
+  .desc { font-size: 13px; color: var(--ink-secondary); margin: 6px 0; }
+  .status-actions { display: flex; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .status-actions button {
+    font-size: 12px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: #fff;
+    cursor: pointer;
+  }
+  .status-actions button.current { opacity: 0.5; cursor: default; }
+  .filters { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .filters input, .filters select { width: auto; flex: 1; min-width: 140px; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 1.25rem; }
+  .stat { background: var(--surface-2); border-radius: 8px; padding: 12px; }
+  .stat .num { font-size: 22px; font-weight: 600; }
+  .stat .lbl { font-size: 12px; color: var(--ink-secondary); }
+  .pin-box { max-width: 260px; margin: 2rem auto; text-align: center; }
+  .pin-box input { text-align: center; letter-spacing: 0.3em; margin-bottom: 8px; }
+  .err { color: #A32D2D; font-size: 12px; margin: 6px 0; }
+  .hidden { display: none; }
+  .center-msg { text-align: center; color: var(--ink-muted); font-size: 14px; padding: 2rem 0; }
+  .file-drop {
+    border: 1.5px dashed var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--ink-secondary);
+    cursor: pointer;
+    background: var(--surface-2);
+    display: block;
+  }
+  .file-drop:hover { border-color: var(--teal); }
+  .file-drop input[type=file] { display: none; }
+  .file-preview-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin-top: 8px; }
+  .file-preview-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: var(--surface-2);
+    border-radius: 8px;
+    font-size: 12px;
+  }
+  .file-preview-item img { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; }
+  .file-preview-item .file-icon {
+    width: 40px; height: 40px; border-radius: 6px;
+    background: var(--teal-tint); color: var(--teal-dark);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600;
+  }
+  .file-preview-item .fp-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+  .file-preview-item .fp-remove { color: #A32D2D; cursor: pointer; font-size: 12px; background: none; border: none; padding: 2px 4px; }
+  .attach-count { font-size: 11px; color: var(--ink-muted); margin-top: 4px; grid-column: 1 / -1; }
+
+  /* ===== Ticket table + detail view ===== */
+  .ticket-table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    margin-bottom: 14px;
+  }
+  .ticket-table { width: 100%; min-width: 1080px; border-collapse: collapse; font-size: 13px; }
+  .ticket-table thead th {
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink-muted);
+    background: var(--surface-2);
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .ticket-table tbody tr {
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+  }
+  .ticket-table tbody tr:last-child { border-bottom: none; }
+  .ticket-table tbody tr:hover { background: var(--surface-2); }
+  .ticket-table tbody tr.row-selected { background: var(--teal-tint); }
+  .ticket-table td {
+    padding: 10px 12px;
+    vertical-align: middle;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 220px;
+  }
+  .ticket-table td.td-id { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--ink-secondary); }
+  .ticket-table td.td-summary { font-weight: 500; max-width: 320px; }
+  .row-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 3px 9px;
+    border-radius: 999px;
+  }
+
+  .ticket-detail {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    display: grid;
+    grid-template-columns: 1fr 260px;
+    overflow: hidden;
+  }
+  .ticket-detail-main { padding: 1.25rem; border-right: 1px solid var(--border); min-width: 0; }
+  .ticket-detail-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .ticket-detail-header h2 { font-size: 17px; margin: 0 0 4px; font-weight: 600; }
+  .ticket-detail-close {
+    border: none;
+    background: var(--surface-2);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--ink-secondary);
+    flex-shrink: 0;
+  }
+  .ticket-detail-close:hover { background: var(--border); }
+  .detail-comment {
+    background: var(--surface-2);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 13px;
+    color: var(--ink);
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+  .detail-comment-meta { font-size: 12px; color: var(--ink-muted); margin-bottom: 8px; }
+  .ticket-detail-side { padding: 1.25rem; background: var(--surface-2); }
+  .side-field { margin-bottom: 16px; }
+  .side-field label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink-muted);
+    margin-bottom: 6px;
+  }
+  .side-field .side-value { font-size: 13px; color: var(--ink); font-weight: 500; }
+  .side-status-btns { display: flex; flex-direction: column; gap: 6px; }
+  .side-status-btns button {
+    font-size: 12px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: #fff;
+    cursor: pointer;
+    text-align: left;
+  }
+  .side-status-btns button.current { background: var(--teal); color: #fff; border-color: var(--teal); cursor: default; }
+
+  /* ===== Modal (Create a ticket) ===== */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(28, 43, 42, 0.45);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 5vh 16px;
+    overflow-y: auto;
+    z-index: 1000;
+  }
+  .modal-overlay.hidden { display: none; }
+  .modal-card {
+    background: var(--surface);
+    border-radius: 14px;
+    width: 100%;
+    max-width: 640px;
+    box-shadow: 0 20px 60px rgba(20, 30, 29, 0.25);
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .modal-header h2 { font-size: 17px; margin: 0; font-weight: 600; }
+  .modal-body { padding: 20px 22px; overflow-y: auto; }
+  .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px 22px;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .btn-secondary {
+    background: #fff;
+    color: var(--ink);
+    border: 1px solid var(--border);
+    padding: 9px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .btn-secondary:hover { background: var(--surface-2); }
+
+  @media (max-width: 720px) {
+    .ticket-detail { grid-template-columns: 1fr; }
+    .ticket-detail-main { border-right: none; border-bottom: 1px solid var(--border); }
+    .ticket-table-wrap { overflow-x: auto; }
+  }
+  .ticket-attachment { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .ticket-attachment img {
+    width: 72px; height: 72px; object-fit: cover; border-radius: 8px;
+    border: 1px solid var(--border); display: block; cursor: pointer;
+  }
+  .ticket-attachment a.file-link {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--teal-dark);
+    background: var(--teal-tint); padding: 6px 10px; border-radius: 8px;
+    text-decoration: none; height: 20px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div style="background:#FAEEDA;color:#633806;font-size:12px;padding:8px 12px;border-radius:8px;margin-bottom:1rem;text-align:center;">
+    Data is currently saved in this browser's local storage only, not shared across devices yet.
+  </div>
+  <header>
+    <div>
+      <h1>TPMC IT concern desk</h1>
+      <p class="sub">Submit and track IT concerns across the hospital</p>
+    </div>
+    <div class="tabs">
+      <span id="loggedInAs" class="meta hidden" style="margin-right:4px;"></span>
+      <button class="tab-btn hidden" id="logoutBtn" onclick="logout()">Logout</button>
+      <button class="tab-btn active" id="tabSubmitBtn" onclick="openSubmitModal()">+ Submit a concern</button>
+    </div>
+  </header>
+
+  <div id="submitView" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="submitModalTitle">Create a ticket</h2>
+        <button class="ticket-detail-close" onclick="closeSubmitModal()">✕</button>
+      </div>
+      <div class="modal-body">
+      <div id="submitForm">
+        <div class="row">
+          <div class="field">
+            <label>Name</label>
+            <input id="f_requester" placeholder="Juan dela Cruz">
+          </div>
+          <div class="field">
+            <label>Department / Unit</label>
+            <select id="f_department" onchange="toggleOtherDept()">
+              <option value="">Select department...</option>
+              <option>Emergency Room</option>
+              <option>Outpatient Department</option>
+              <option>Station 3A</option>
+              <option>Station 3B</option>
+              <option>Station 3C</option>
+              <option>NICU</option>
+              <option>ICU</option>
+              <option>Hemodialysis</option>
+              <option>Laboratory</option>
+              <option>Radiology</option>
+              <option>Pharmacy</option>
+              <option>Medical Records</option>
+              <option>Admin</option>
+              <option>Billing</option>
+              <option>Human Resources</option>
+              <option>PhilHealth</option>
+              <option>PhilHealth Yakap</option>
+              <option>HMO</option>
+              <option>Cashier</option>
+              <option>Purchasing</option>
+              <option>CSR</option>
+              <option>Physical Rehab</option>
+              <option>Dietary</option>
+              <option>Engineering</option>
+              <option>Industrial</option>
+              <option>Eye Center</option>
+              <option>Audit</option>
+              <option>Accounting</option>
+              <option>Finance</option>
+              <option>Biomedical</option>
+              <option>Pulmonology</option>
+              <option>Heart Station</option>
+              <option>Audiometry</option>
+              <option>Admitting</option>
+              <option value="Others">Others (please specify)</option>
+            </select>
+            <input id="f_department_other" class="hidden" placeholder="Type department name" style="margin-top:8px;">
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Category</label>
+            <select id="f_category">
+              <option>Hardware</option>
+              <option>Network / Internet</option>
+              <option>Software / System</option>
+              <option>Printer</option>
+              <option>Account / Password</option>
+              <option>Others</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Priority</label>
+            <select id="f_priority">
+              <option>Low</option>
+              <option selected>Medium</option>
+              <option>High</option>
+              <option>Urgent</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Concern details</label>
+          <textarea id="f_description" placeholder="Describe the issue..."></textarea>
+        </div>
+        <div class="field">
+          <label>Attach photo/file (optional)</label>
+          <label class="file-drop" id="fileDropLabel">
+            <span id="fileDropText">Click to attach photos/files (max 2MB each)</span>
+            <input type="file" id="f_attachment" accept="image/*,.pdf,.doc,.docx,.txt" multiple onchange="handleFileSelect()">
+          </label>
+          <div id="filePreview" class="file-preview-list hidden"></div>
+        </div>
+        <p class="err hidden" id="submitError"></p>
+      </div>
+      <div id="submitSuccess" class="hidden">
+        <p class="sub" style="margin-bottom:10px;">Your concern has been submitted.</p>
+        <div class="ticket" id="successTicket"></div>
+        <p class="meta" style="margin-top:10px;">Save this ticket number for follow-up.</p>
+      </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="submitCancelBtn" onclick="closeSubmitModal()">Cancel</button>
+        <button class="primary" id="submitConfirmBtn" style="width:auto;" onclick="submitTicket()">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="adminView">
+    <div id="authGate" class="pin-box" style="max-width:380px;text-align:left;">
+      <div id="loginForm">
+        <p class="sub" style="text-align:center;margin-bottom:14px;">Sign in to the IT dashboard</p>
+        <div class="field">
+          <label>Username</label>
+          <input id="login_username" placeholder="juan.delacruz">
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="login_password" placeholder="••••••••" onkeydown="if(event.key==='Enter')login()">
+        </div>
+        <p class="err hidden" id="loginError">Incorrect username or password.</p>
+        <button class="primary" onclick="login()">Login</button>
+        <p class="meta" style="margin-top:12px;text-align:center;">No account yet? <a href="#" onclick="showRegister();return false;">Register here</a></p>
+      </div>
+      <div id="registerForm" class="hidden">
+        <p class="sub" style="text-align:center;margin-bottom:14px;">Create an IT staff account</p>
+        <div class="field">
+          <label>Full name</label>
+          <input id="reg_fullname" placeholder="Juan dela Cruz">
+        </div>
+        <div class="field">
+          <label>Username</label>
+          <input id="reg_username" placeholder="juan.delacruz">
+        </div>
+        <div class="field">
+          <label>Department / Unit</label>
+          <select id="reg_department">
+            <option value="">Select department...</option>
+            <option>IT Department</option>
+            <option>Emergency Room</option>
+            <option>Outpatient Department</option>
+            <option>Station 3A</option>
+            <option>Station 3B</option>
+            <option>Station 3C</option>
+            <option>NICU</option>
+            <option>ICU</option>
+            <option>Hemodialysis</option>
+            <option>Laboratory</option>
+            <option>Radiology</option>
+            <option>Pharmacy</option>
+            <option>Medical Records</option>
+            <option>Admin</option>
+            <option>Billing</option>
+            <option>Human Resources</option>
+            <option>PhilHealth</option>
+            <option>PhilHealth Yakap</option>
+            <option>HMO</option>
+            <option>Cashier</option>
+            <option>Purchasing</option>
+            <option>CSR</option>
+            <option>Physical Rehab</option>
+            <option>Dietary</option>
+            <option>Engineering</option>
+            <option>Industrial</option>
+            <option>Eye Center</option>
+            <option>Audit</option>
+            <option>Accounting</option>
+            <option>Finance</option>
+            <option>Biomedical</option>
+            <option>Pulmonology</option>
+            <option>Heart Station</option>
+            <option>Audiometry</option>
+            <option>Admitting</option>
+            <option value="Others">Others (please specify)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="reg_password" placeholder="••••••••">
+        </div>
+        <div class="field">
+          <label>Confirm password</label>
+          <input type="password" id="reg_password2" placeholder="••••••••">
+        </div>
+        <p class="err hidden" id="registerError"></p>
+        <button class="primary" onclick="register()">Create account</button>
+        <p class="meta" style="margin-top:12px;text-align:center;">Already have an account? <a href="#" onclick="showLogin();return false;">Login here</a></p>
+      </div>
+    </div>
+    <div id="dashboard" class="hidden">
+      <div class="stats" id="stats"></div>
+      <div class="filters">
+        <input id="searchInput" placeholder="Search ticket, name, department..." oninput="renderTickets()">
+        <select id="statusFilter" onchange="renderTickets()">
+          <option value="All">All statuses</option>
+          <option>Open</option>
+          <option>In progress</option>
+          <option>Resolved</option>
+        </select>
+        <select id="categoryFilter" onchange="renderTickets()">
+          <option value="All">All categories</option>
+          <option>Hardware</option>
+          <option>Network / Internet</option>
+          <option>Software / System</option>
+          <option>Printer</option>
+          <option>Account / Password</option>
+          <option>Others</option>
+        </select>
+      </div>
+      <div class="ticket-table-wrap">
+        <table class="ticket-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Summary</th>
+              <th>Requester</th>
+              <th>Department</th>
+              <th>Priority</th>
+              <th>Category</th>
+              <th>Status</th>
+              <th>Date Requested</th>
+              <th>Date Resolved</th>
+              <th>Resolved by</th>
+              <th>Due date</th>
+            </tr>
+          </thead>
+          <tbody id="ticketTableBody"></tbody>
+        </table>
+      </div>
+      <div id="ticketDetail" class="ticket-detail hidden"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Tickets pa rin sa localStorage (susunod na step); auth na gamit MySQL/PHP
+const STORE_KEY = "tpmc_tickets";
+const SEQ_KEY = "tpmc_seq";
+
+// Kung ibang folder ang pinaglagyan ng PHP files sa htdocs, i-adjust ito.
+// Dapat WALANG SPACE ang folder name sa htdocs (mag-i-issue ang URL kung may space).
+const API_AUTH = "/ticketing-system-tpmc/auth";
+
+function readStore() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY) || "[]"); }
+  catch { return []; }
+}
+function writeStore(list) {
+  localStorage.setItem(STORE_KEY, JSON.stringify(list));
+}
+function readSeq() {
+  return Number(localStorage.getItem(SEQ_KEY) || "0");
+}
+function writeSeq(n) {
+  localStorage.setItem(SEQ_KEY, String(n));
+}
+
+let tickets = [];
+let currentUser = null;
+let selectedFiles = []; // [{ name, type, dataUrl }]
+const MAX_FILE_MB = 2;
+const MAX_FILES = 5;
+
+function isIT() {
+  return !!(currentUser && currentUser.department === 'IT Department');
+}
+
+function openSubmitModal() {
+  document.getElementById('submitForm').classList.remove('hidden');
+  document.getElementById('submitSuccess').classList.add('hidden');
+  document.getElementById('submitModalTitle').textContent = 'Create a ticket';
+  document.getElementById('submitCancelBtn').classList.remove('hidden');
+  const confirmBtn = document.getElementById('submitConfirmBtn');
+  confirmBtn.classList.remove('hidden');
+  confirmBtn.textContent = 'Create';
+  confirmBtn.setAttribute('onclick', 'submitTicket()');
+  document.getElementById('submitView').classList.remove('hidden');
+}
+
+function closeSubmitModal() {
+  document.getElementById('submitView').classList.add('hidden');
+  resetForm();
+}
+
+function showLogin() {
+  document.getElementById('registerForm').classList.add('hidden');
+  document.getElementById('loginForm').classList.remove('hidden');
+}
+
+function showRegister() {
+  document.getElementById('loginForm').classList.add('hidden');
+  document.getElementById('registerForm').classList.remove('hidden');
+}
+
+async function register() {
+  const fullname = document.getElementById('reg_fullname').value.trim();
+  const username = document.getElementById('reg_username').value.trim().toLowerCase();
+  const department = document.getElementById('reg_department').value;
+  const password = document.getElementById('reg_password').value;
+  const password2 = document.getElementById('reg_password2').value;
+  const errEl = document.getElementById('registerError');
+
+  if (!fullname || !username || !department || !password) {
+    errEl.textContent = "Please fill in all fields.";
+    errEl.classList.remove('hidden');
+    return;
+  }
+  if (password.length < 6) {
+    errEl.textContent = "Password must be at least 6 characters.";
+    errEl.classList.remove('hidden');
+    return;
+  }
+  if (password !== password2) {
+    errEl.textContent = "Passwords do not match.";
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_AUTH}/register.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ fullname, username, department, password, confirmPassword: password2 })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.textContent = data.error || "May naganap na error. Subukan ulit.";
+      errEl.classList.remove('hidden');
+      return;
+    }
+    errEl.classList.add('hidden');
+    enterDashboard(data.user);
+  } catch (e) {
+    errEl.textContent = "Hindi ma-reach ang server. Tiyaking naka-start ang Apache/MySQL sa XAMPP.";
+    errEl.classList.remove('hidden');
+  }
+}
+
+async function login() {
+  const username = document.getElementById('login_username').value.trim().toLowerCase();
+  const password = document.getElementById('login_password').value;
+  const errEl = document.getElementById('loginError');
+
+  try {
+    const res = await fetch(`${API_AUTH}/login.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.textContent = data.error || "Mali ang username o password.";
+      errEl.classList.remove('hidden');
+      return;
+    }
+    errEl.classList.add('hidden');
+    enterDashboard(data.user);
+  } catch (e) {
+    errEl.textContent = "Hindi ma-reach ang server. Tiyaking naka-start ang Apache/MySQL sa XAMPP.";
+    errEl.classList.remove('hidden');
+  }
+}
+
+function enterDashboard(user) {
+  currentUser = { fullname: user.fullname, username: user.username, department: user.department };
+  document.getElementById('authGate').classList.add('hidden');
+  document.getElementById('dashboard').classList.remove('hidden');
+  const label = document.getElementById('loggedInAs');
+  label.textContent = `${user.fullname} (${user.department})`;
+  label.classList.remove('hidden');
+  document.getElementById('logoutBtn').classList.remove('hidden');
+  tickets = readStore();
+  renderTickets();
+}
+
+async function logout() {
+  currentUser = null;
+  try {
+    await fetch(`${API_AUTH}/logout.php`, { method: 'POST', credentials: 'include' });
+  } catch (e) { /* fine, magpatuloy pa rin sa client-side logout */ }
+  document.getElementById('dashboard').classList.add('hidden');
+  document.getElementById('authGate').classList.remove('hidden');
+  showLogin();
+  document.getElementById('login_username').value = '';
+  document.getElementById('login_password').value = '';
+  document.getElementById('loggedInAs').classList.add('hidden');
+  document.getElementById('logoutBtn').classList.add('hidden');
+}
+
+async function tryRestoreSession() {
+  try {
+    const res = await fetch(`${API_AUTH}/me.php`, { credentials: 'include' });
+    const data = await res.json();
+    if (data.user) enterDashboard(data.user);
+  } catch (e) { /* wala lang, mananatili sa login screen */ }
+}
+tryRestoreSession();
+
+function nextTicketNumber() {
+  const next = readSeq() + 1;
+  writeSeq(next);
+  return next;
+}
+
+function toggleOtherDept() {
+  const sel = document.getElementById('f_department').value;
+  const otherInput = document.getElementById('f_department_other');
+  if (sel === 'Others') {
+    otherInput.classList.remove('hidden');
+  } else {
+    otherInput.classList.add('hidden');
+    otherInput.value = '';
+  }
+}
+
+function handleFileSelect() {
+  const input = document.getElementById('f_attachment');
+  const files = Array.from(input.files || []);
+  const errEl = document.getElementById('submitError');
+  if (!files.length) return;
+
+  if (selectedFiles.length + files.length > MAX_FILES) {
+    errEl.textContent = `Max ${MAX_FILES} files lang per ticket.`;
+    errEl.classList.remove('hidden');
+    input.value = '';
+    return;
+  }
+
+  const tooBig = files.find(f => f.size > MAX_FILE_MB * 1024 * 1024);
+  if (tooBig) {
+    errEl.textContent = `"${tooBig.name}" is too big. Max ${MAX_FILE_MB}MB per file.`;
+    errEl.classList.remove('hidden');
+    input.value = '';
+    return;
+  }
+  errEl.classList.add('hidden');
+
+  let loaded = 0;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      selectedFiles.push({ name: file.name, type: file.type, dataUrl: reader.result });
+      loaded++;
+      if (loaded === files.length) {
+        input.value = '';
+        renderFilePreview();
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderFilePreview() {
+  const preview = document.getElementById('filePreview');
+  const dropText = document.getElementById('fileDropText');
+
+  if (!selectedFiles.length) {
+    preview.classList.add('hidden');
+    preview.innerHTML = '';
+    dropText.textContent = 'Click to attach photos/files (max 2MB each)';
+    return;
+  }
+
+  dropText.textContent = selectedFiles.length < MAX_FILES ? 'Add another photo/file' : `Max ${MAX_FILES} files reached`;
+  preview.innerHTML = selectedFiles.map((f, i) => {
+    const isImage = f.type.startsWith('image/');
+    const thumb = isImage
+      ? `<img src="${f.dataUrl}" alt="preview">`
+      : `<div class="file-icon">${(f.name.split('.').pop() || 'FILE').slice(0,4).toUpperCase()}</div>`;
+    return `<div class="file-preview-item">${thumb}<span class="fp-name">${escapeHTML(f.name)}</span><button type="button" class="fp-remove" onclick="removeFile(${i})">Remove</button></div>`;
+  }).join('') + `<div class="attach-count">${selectedFiles.length}/${MAX_FILES} file(s) attached</div>`;
+  preview.classList.remove('hidden');
+}
+
+function removeFile(index) {
+  selectedFiles.splice(index, 1);
+  document.getElementById('f_attachment').value = '';
+  renderFilePreview();
+}
+
+function submitTicket() {
+  const requester = document.getElementById('f_requester').value.trim();
+  const deptSelect = document.getElementById('f_department').value;
+  const deptOther = document.getElementById('f_department_other').value.trim();
+  const department = deptSelect === 'Others' ? deptOther : deptSelect;
+  const category = document.getElementById('f_category').value;
+  const priority = document.getElementById('f_priority').value;
+  const description = document.getElementById('f_description').value.trim();
+  const errEl = document.getElementById('submitError');
+
+  if (!requester || !department || !description) {
+    errEl.textContent = "Please fill in all required fields.";
+    errEl.classList.remove('hidden');
+    return;
+  }
+  errEl.classList.add('hidden');
+
+  const seq = nextTicketNumber();
+  const year = new Date().getFullYear();
+  const ticketId = `IT-${year}-${String(seq).padStart(4, '0')}`;
+  const now = new Date();
+  const dueDays = { Urgent: 1, High: 2, Medium: 3, Low: 5 }[priority] || 3;
+  const dueDate = new Date(now.getTime() + dueDays * 24 * 60 * 60 * 1000).toISOString();
+  const ticket = {
+    id: ticketId, requester, department, category, priority, description,
+    status: "Open", createdAt: now.toISOString(), updatedAt: now.toISOString(), dueDate,
+    attachments: selectedFiles.map(f => ({ name: f.name, type: f.type, dataUrl: f.dataUrl }))
+  };
+
+  const list = readStore();
+  list.unshift(ticket);
+  writeStore(list);
+
+  document.getElementById('successTicket').innerHTML = ticketHTML(ticket, false);
+  document.getElementById('submitForm').classList.add('hidden');
+  document.getElementById('submitSuccess').classList.remove('hidden');
+  document.getElementById('submitModalTitle').textContent = 'Ticket created';
+  document.getElementById('submitCancelBtn').classList.add('hidden');
+  document.getElementById('submitConfirmBtn').textContent = 'Done';
+  document.getElementById('submitConfirmBtn').setAttribute('onclick', 'closeSubmitModal()');
+  selectedFiles = [];
+  document.getElementById('f_attachment').value = '';
+  if (!document.getElementById('dashboard').classList.contains('hidden')) {
+    tickets = readStore();
+    renderTickets();
+  }
+}
+
+function resetForm() {
+  document.getElementById('f_requester').value = '';
+  document.getElementById('f_department').selectedIndex = 0;
+  document.getElementById('f_department_other').value = '';
+  document.getElementById('f_department_other').classList.add('hidden');
+  document.getElementById('f_description').value = '';
+  document.getElementById('f_category').selectedIndex = 0;
+  document.getElementById('f_priority').selectedIndex = 1;
+  selectedFiles = [];
+  document.getElementById('f_attachment').value = '';
+  renderFilePreview();
+  document.getElementById('submitForm').classList.remove('hidden');
+  document.getElementById('submitSuccess').classList.add('hidden');
+}
+
+function ticketHTML(t, withActions) {
+  const statusClass = 's-' + t.status.replace(' ', '-');
+  let actions = '';
+  if (withActions) {
+    actions = `<div class="status-actions">` +
+      ['Open','In progress','Resolved'].map(s =>
+        `<button class="${s===t.status?'current':''}" ${s===t.status?'disabled':''} onclick="updateStatus('${t.id}','${s}')">${s}</button>`
+      ).join('') + `</div>`;
+  }
+  const meta = t.department ? `<p class="meta">${escapeHTML(t.department)} · ${escapeHTML(t.requester||'')}</p>` : '';
+  const dateStr = t.createdAt ? `<p class="meta">${new Date(t.createdAt).toLocaleString('en-PH',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}</p>` : '';
+  let attachmentHTML = '';
+  if (Array.isArray(t.attachments) && t.attachments.length) {
+    const items = t.attachments.map(a => {
+      if (a.type && a.type.startsWith('image/')) {
+        return `<img src="${a.dataUrl}" alt="${escapeHTML(a.name)}" onclick="window.open('${a.dataUrl.replace(/'/g,"\\'")}', '_blank')">`;
+      }
+      return `<a class="file-link" href="${a.dataUrl}" download="${escapeHTML(a.name)}">📎 ${escapeHTML(a.name)}</a>`;
+    }).join('');
+    attachmentHTML = `<div class="ticket-attachment">${items}</div>`;
+  } else if (t.attachment && t.attachment.dataUrl) {
+    // backward compat sa mga lumang ticket na single-attachment pa
+    attachmentHTML = t.attachment.type && t.attachment.type.startsWith('image/')
+      ? `<div class="ticket-attachment"><img src="${t.attachment.dataUrl}" alt="${escapeHTML(t.attachment.name)}" onclick="window.open('${t.attachment.dataUrl.replace(/'/g,"\\'")}', '_blank')"></div>`
+      : `<div class="ticket-attachment"><a class="file-link" href="${t.attachment.dataUrl}" download="${escapeHTML(t.attachment.name)}">📎 ${escapeHTML(t.attachment.name)}</a></div>`;
+  }
+  return `
+    <div class="ticket-stub">${t.id}</div>
+    <div class="ticket-body">
+      ${meta}
+      <p style="font-weight:500;margin:0 0 4px;">${escapeHTML(t.category)}</p>
+      <p class="desc">${escapeHTML(t.description)}</p>
+      ${attachmentHTML}
+      ${dateStr}
+      <span class="badge p-${t.priority}">${t.priority}</span>
+      <span class="badge ${statusClass}">${t.status}</span>
+      ${actions}
+    </div>
+  `;
+}
+
+function escapeHTML(str) {
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
+let selectedTicketId = null;
+
+function updateStatus(id, status) {
+  if (!isIT()) return;
+  const now = new Date().toISOString();
+  const list = readStore().map(t => {
+    if (t.id !== id) return t;
+    const updated = { ...t, status, updatedAt: now };
+    if (status === 'Resolved') {
+      updated.resolvedAt = now;
+      updated.resolvedBy = currentUser.fullname;
+    } else {
+      updated.resolvedAt = null;
+      updated.resolvedBy = null;
+    }
+    return updated;
+  });
+  writeStore(list);
+  tickets = list;
+  renderTickets();
+  if (selectedTicketId === id) renderTicketDetail(id);
+}
+
+function postReply(id) {
+  if (!isIT()) return;
+  const textEl = document.getElementById('replyText_' + id);
+  const text = textEl ? textEl.value.trim() : '';
+  if (!text) return;
+  const comment = { author: currentUser.fullname, text, createdAt: new Date().toISOString() };
+  const list = readStore().map(t => t.id === id ? { ...t, comments: [...(t.comments || []), comment], updatedAt: new Date().toISOString() } : t);
+  writeStore(list);
+  tickets = list;
+  if (selectedTicketId === id) renderTicketDetail(id);
+}
+
+function summaryOf(t) {
+  const first = (t.description || '').split('\n')[0];
+  return first.length > 60 ? first.slice(0, 60) + '…' : (first || t.category);
+}
+
+function renderTickets() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const statusFilter = document.getElementById('statusFilter').value;
+  const categoryFilter = document.getElementById('categoryFilter').value;
+
+  const filtered = tickets.filter(t => {
+    if (statusFilter !== 'All' && t.status !== statusFilter) return false;
+    if (categoryFilter !== 'All' && t.category !== categoryFilter) return false;
+    if (search) {
+      const hay = `${t.id} ${t.requester} ${t.department} ${t.description}`.toLowerCase();
+      if (!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  const counts = { Open: 0, 'In progress': 0, Resolved: 0 };
+  tickets.forEach(t => { counts[t.status] = (counts[t.status] || 0) + 1; });
+  document.getElementById('stats').innerHTML = ['Open','In progress','Resolved'].map(s =>
+    `<div class="stat"><div class="num">${counts[s]||0}</div><div class="lbl">${s}</div></div>`
+  ).join('');
+
+  const tbody = document.getElementById('ticketTableBody');
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="11" class="center-msg" style="white-space:normal;">No matching tickets.</td></tr>`;
+  } else {
+    tbody.innerHTML = filtered.map(t => {
+      const statusClass = 's-' + t.status.replace(' ', '-');
+      const requestedStr = t.createdAt ? new Date(t.createdAt).toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'}) : '';
+      const resolvedStr = t.resolvedAt ? new Date(t.resolvedAt).toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'}) : '—';
+      const isOverdue = t.dueDate && t.status !== 'Resolved' && new Date(t.dueDate).getTime() < Date.now();
+      const dueStr = t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'}) : '';
+      return `
+        <tr class="${t.id===selectedTicketId?'row-selected':''}" onclick="openTicketDetail('${t.id}')">
+          <td class="td-id">${t.id}</td>
+          <td class="td-summary">${escapeHTML(summaryOf(t))}</td>
+          <td>${escapeHTML(t.requester||'')}</td>
+          <td>${escapeHTML(t.department||'')}</td>
+          <td><span class="row-badge p-${t.priority}">${t.priority}</span></td>
+          <td>${escapeHTML(t.category||'')}</td>
+          <td><span class="row-badge ${statusClass}">${t.status}</span></td>
+          <td>${requestedStr}</td>
+          <td>${resolvedStr}</td>
+          <td>${escapeHTML(t.resolvedBy || '—')}</td>
+          <td${isOverdue ? ' style="color:#c0392b;font-weight:600;"' : ''}>${dueStr}${isOverdue ? ' ⚠' : ''}</td>
+        </tr>`;
+    }).join('');
+  }
+
+  // keep detail panel in sync (e.g. if the selected ticket got filtered out)
+  if (selectedTicketId && filtered.some(t => t.id === selectedTicketId)) {
+    renderTicketDetail(selectedTicketId);
+  } else if (selectedTicketId) {
+    closeTicketDetail();
+  }
+}
+
+function openTicketDetail(id) {
+  selectedTicketId = id;
+  renderTicketDetail(id);
+  renderTickets();
+  document.getElementById('ticketDetail').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closeTicketDetail() {
+  selectedTicketId = null;
+  const panel = document.getElementById('ticketDetail');
+  panel.classList.add('hidden');
+  panel.innerHTML = '';
+  renderTickets();
+}
+
+function renderTicketDetail(id) {
+  const t = tickets.find(x => x.id === id);
+  const panel = document.getElementById('ticketDetail');
+  if (!t) { panel.classList.add('hidden'); panel.innerHTML = ''; return; }
+
+  let attachmentHTML = '';
+  const atts = Array.isArray(t.attachments) && t.attachments.length ? t.attachments
+    : (t.attachment && t.attachment.dataUrl ? [t.attachment] : []);
+  if (atts.length) {
+    const items = atts.map(a => {
+      if (a.type && a.type.startsWith('image/')) {
+        return `<img src="${a.dataUrl}" alt="${escapeHTML(a.name)}" onclick="window.open('${a.dataUrl.replace(/'/g,"\\'")}', '_blank')">`;
+      }
+      return `<a class="file-link" href="${a.dataUrl}" download="${escapeHTML(a.name)}">📎 ${escapeHTML(a.name)}</a>`;
+    }).join('');
+    attachmentHTML = `<div class="ticket-attachment" style="margin-top:14px;">${items}</div>`;
+  }
+
+  const dateStr = t.createdAt ? new Date(t.createdAt).toLocaleString('en-PH',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '';
+  const statusClass = 's-' + t.status.replace(' ', '-');
+
+  panel.innerHTML = `
+    <div class="ticket-detail-main">
+      <div class="ticket-detail-header">
+        <div>
+          <h2>#${t.id} — ${escapeHTML(t.category)}</h2>
+          <p class="meta">${escapeHTML(t.department||'')} · ${escapeHTML(t.requester||'')} · ${dateStr}</p>
+        </div>
+        <button class="ticket-detail-close" onclick="closeTicketDetail()">✕</button>
+      </div>
+      <div class="detail-comment-meta">${escapeHTML(t.requester||'Requester')} reported:</div>
+      <div class="detail-comment">${escapeHTML(t.description)}</div>
+      ${attachmentHTML}
+      <div class="detail-replies" style="margin-top:20px;">
+        <label class="meta" style="display:block;margin-bottom:8px;">IT replies</label>
+        ${
+          (Array.isArray(t.comments) && t.comments.length)
+            ? t.comments.map(c => `
+              <div class="detail-comment-meta">${escapeHTML(c.author||'IT')} · ${c.createdAt ? new Date(c.createdAt).toLocaleString('en-PH',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : ''}</div>
+              <div class="detail-comment">${escapeHTML(c.text)}</div>
+            `).join('')
+            : `<p class="meta">No replies yet.</p>`
+        }
+      </div>
+      ${
+        isIT()
+          ? `<div class="field" style="margin-top:12px;">
+              <label>Post a reply</label>
+              <textarea id="replyText_${t.id}" placeholder="Type your reply to the requester..."></textarea>
+              <button class="primary" style="width:auto;margin-top:8px;" onclick="postReply('${t.id}')">Send reply</button>
+            </div>`
+          : ``
+      }
+    </div>
+    <div class="ticket-detail-side">
+      <div class="side-field">
+        <label>Status</label>
+        ${
+          isIT()
+            ? `<div class="side-status-btns">
+                ${['Open','In progress','Resolved'].map(s =>
+                  `<button class="${s===t.status?'current':''}" ${s===t.status?'disabled':''} onclick="updateStatus('${t.id}','${s}')">${s}</button>`
+                ).join('')}
+              </div>`
+            : `<div class="side-value"><span class="badge s-${t.status.replace(' ','-')}">${t.status}</span></div>
+               <p class="meta" style="margin-top:6px;">Only IT can change the status.</p>`
+        }
+      </div>
+      <div class="side-field">
+        <label>Priority</label>
+        <div class="side-value"><span class="badge p-${t.priority}">${t.priority}</span></div>
+      </div>
+      <div class="side-field">
+        <label>Category</label>
+        <div class="side-value">${escapeHTML(t.category||'')}</div>
+      </div>
+      <div class="side-field">
+        <label>Department</label>
+        <div class="side-value">${escapeHTML(t.department||'')}</div>
+      </div>
+      <div class="side-field">
+        <label>Requester</label>
+        <div class="side-value">${escapeHTML(t.requester||'')}</div>
+      </div>
+      <div class="side-field">
+        <label>Current status</label>
+        <div class="side-value"><span class="badge ${statusClass}">${t.status}</span></div>
+      </div>
+      <div class="side-field">
+        <label>Date Requested</label>
+        <div class="side-value">${t.createdAt ? new Date(t.createdAt).toLocaleString('en-PH',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : ''}</div>
+      </div>
+      <div class="side-field">
+        <label>Date Resolved</label>
+        <div class="side-value">${t.resolvedAt ? new Date(t.resolvedAt).toLocaleString('en-PH',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '—'}</div>
+      </div>
+      <div class="side-field">
+        <label>Resolved by</label>
+        <div class="side-value">${escapeHTML(t.resolvedBy || '—')}</div>
+      </div>
+      <div class="side-field">
+        <label>Due date</label>
+        <div class="side-value">${t.dueDate ? new Date(t.dueDate).toLocaleString('en-PH',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '—'}</div>
+      </div>
+    </div>
+  `;
+  panel.classList.remove('hidden');
+}
+
+</script>
+</body>
+</html>
