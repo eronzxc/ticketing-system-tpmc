@@ -471,6 +471,98 @@
     </div>
   </div>
 
+  <div id="editView" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="editModalTitle">Edit ticket</h2>
+        <button class="ticket-detail-close" onclick="closeEditModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="editConfirmStep">
+          <p class="sub">Sigurado ka bang gusto mong i-edit ang ticket na ito?</p>
+          <p class="meta" style="margin-top:8px;">Baka napindot lang nang hindi sinasadya. I-confirm mo muna bago ka makapasok sa edit mode.</p>
+        </div>
+        <div id="editFormStep" class="hidden">
+          <div class="row">
+            <div class="field">
+              <label>Department / Unit</label>
+              <select id="e_department" onchange="toggleEditOtherDept()">
+                <option value="">Select department...</option>
+                <option>Emergency Room</option>
+                <option>Outpatient Department</option>
+                <option>Station 3A</option>
+                <option>Station 3B</option>
+                <option>Station 3C</option>
+                <option>NICU</option>
+                <option>ICU</option>
+                <option>Hemodialysis</option>
+                <option>Laboratory</option>
+                <option>Radiology</option>
+                <option>Pharmacy</option>
+                <option>Medical Records</option>
+                <option>Admin</option>
+                <option>Billing</option>
+                <option>Human Resources</option>
+                <option>PhilHealth</option>
+                <option>PhilHealth Yakap</option>
+                <option>HMO</option>
+                <option>Cashier</option>
+                <option>Purchasing</option>
+                <option>CSR</option>
+                <option>Physical Rehab</option>
+                <option>Dietary</option>
+                <option>Engineering</option>
+                <option>Industrial</option>
+                <option>Eye Center</option>
+                <option>Audit</option>
+                <option>Accounting</option>
+                <option>Finance</option>
+                <option>Biomedical</option>
+                <option>Pulmonology</option>
+                <option>Heart Station</option>
+                <option>Audiometry</option>
+                <option>Admitting</option>
+                <option value="Others">Others (please specify)</option>
+              </select>
+              <input id="e_department_other" class="hidden" placeholder="Type department name" style="margin-top:8px;">
+            </div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label>Category</label>
+              <select id="e_category">
+                <option>Hardware</option>
+                <option>Network / Internet</option>
+                <option>Software / System</option>
+                <option>Printer</option>
+                <option>Account / Password</option>
+                <option>Others</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Priority</label>
+              <select id="e_priority">
+                <option>Low</option>
+                <option>Medium</option>
+                <option>High</option>
+                <option>Urgent</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>Concern details</label>
+            <textarea id="e_description"></textarea>
+          </div>
+          <p class="err hidden" id="editError"></p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="editCancelBtn" onclick="closeEditModal()">Cancel</button>
+        <button class="primary" id="editConfirmBtn" style="width:auto;" onclick="confirmEditTicket()">Yes, edit this ticket</button>
+      </div>
+    </div>
+  </div>
+
   <div id="adminView">
     <div id="authGate" class="pin-box" style="max-width:380px;text-align:left;">
       <div id="loginForm">
@@ -770,6 +862,7 @@ function normalizeTicket(t) {
     requester: t.requester,
     department: t.department,
     category: t.category,
+    created_by: (t.created_by !== undefined ? t.created_by : (t.createdBy !== undefined ? t.createdBy : null)),
     priority: t.priority,
     description: t.description,
     status: t.status,
@@ -804,6 +897,112 @@ function toggleOtherDept() {
     otherInput.value = '';
   }
 }
+
+let editingTicketId = null;
+
+function toggleEditOtherDept() {
+  const sel = document.getElementById('e_department').value;
+  const otherInput = document.getElementById('e_department_other');
+  if (sel === 'Others') {
+    otherInput.classList.remove('hidden');
+  } else {
+    otherInput.classList.add('hidden');
+  }
+}
+
+function openEditModal(id) {
+  if (!isIT()) return;
+  editingTicketId = id;
+  document.getElementById('editConfirmStep').classList.remove('hidden');
+  document.getElementById('editFormStep').classList.add('hidden');
+  document.getElementById('editConfirmBtn').textContent = 'Yes, edit this ticket';
+  document.getElementById('editConfirmBtn').setAttribute('onclick', 'confirmEditTicket()');
+  document.getElementById('editError').classList.add('hidden');
+  document.getElementById('editView').classList.remove('hidden');
+}
+
+function closeEditModal() {
+  document.getElementById('editView').classList.add('hidden');
+  editingTicketId = null;
+}
+
+function confirmEditTicket() {
+  const t = tickets.find(x => x.id === editingTicketId);
+  if (!t) { closeEditModal(); return; }
+
+  // Palitan sa edit form view, i-prefill lahat ng existing values.
+  document.getElementById('editConfirmStep').classList.add('hidden');
+  document.getElementById('editFormStep').classList.remove('hidden');
+
+  const deptSel = document.getElementById('e_department');
+  const knownDepts = Array.from(deptSel.options).map(o => o.value).filter(v => v && v !== 'Others');
+  if (knownDepts.includes(t.department)) {
+    deptSel.value = t.department;
+    document.getElementById('e_department_other').classList.add('hidden');
+  } else {
+    deptSel.value = 'Others';
+    document.getElementById('e_department_other').classList.remove('hidden');
+    document.getElementById('e_department_other').value = t.department || '';
+  }
+  document.getElementById('e_category').value = t.category || 'Hardware';
+  document.getElementById('e_priority').value = t.priority || 'Medium';
+  document.getElementById('e_description').value = t.description || '';
+
+  document.getElementById('editConfirmBtn').textContent = 'Save changes';
+  document.getElementById('editConfirmBtn').setAttribute('onclick', 'saveTicketEdit()');
+}
+
+async function saveTicketEdit() {
+  const errEl = document.getElementById('editError');
+  errEl.classList.add('hidden');
+
+  let department = document.getElementById('e_department').value;
+  if (department === 'Others') {
+    department = document.getElementById('e_department_other').value.trim();
+  }
+  const category = document.getElementById('e_category').value;
+  const priority = document.getElementById('e_priority').value;
+  const description = document.getElementById('e_description').value.trim();
+
+  if (!department || !category || !description) {
+    errEl.textContent = 'Kulang ang mga required fields.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_TICKETS}/update.php`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: editingTicketId, department, category, priority, description })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.textContent = data.error || 'May naganap na error.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+    const idx = tickets.findIndex(x => x.id === editingTicketId);
+    if (idx !== -1) tickets[idx] = normalizeTicket(data.ticket);
+    closeEditModal();
+    renderTickets();
+    if (selectedTicketId === data.ticket.id) renderTicketDetail(data.ticket.id);
+  } catch (e) {
+    errEl.textContent = 'Hindi makaconnect sa server.';
+    errEl.classList.remove('hidden');
+  }
+}
+
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'e') {
+    if (isIT() && selectedTicketId && document.getElementById('editView').classList.contains('hidden')
+        && document.getElementById('submitView').classList.contains('hidden')) {
+      e.preventDefault();
+      openEditModal(selectedTicketId);
+    }
+  }
+});
 
 function handleFileSelect() {
   const input = document.getElementById('f_attachment');
@@ -1133,7 +1332,10 @@ function renderTicketDetail(id) {
           <h2>#${t.id} — ${escapeHTML(t.category)}</h2>
           <p class="meta">${escapeHTML(t.department||'')} · ${escapeHTML(t.requester||'')} · ${dateStr}</p>
         </div>
-        <button class="ticket-detail-close" onclick="closeTicketDetail()">✕</button>
+        <div class="ticket-detail-header-actions" style="display:flex;gap:8px;align-items:center;">
+          ${isIT() ? `<button class="btn-secondary" style="width:auto;" onclick="openEditModal('${t.id}')" title="Ctrl+E">✎ Edit</button>` : ``}
+          <button class="ticket-detail-close" onclick="closeTicketDetail()">✕</button>
+        </div>
       </div>
       <div class="detail-comment-meta">${escapeHTML(t.requester||'Requester')} reported:</div>
       <div class="detail-comment">${escapeHTML(t.description)}</div>
