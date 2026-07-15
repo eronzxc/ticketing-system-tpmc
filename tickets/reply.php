@@ -2,7 +2,7 @@
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/session.php';
 
-requireIT();
+requireLogin();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -19,6 +19,26 @@ if ($id === '' || $text === '') {
 }
 
 $user = currentUser();
+
+// Person-to-person lang: yung IT o yung TALAGANG gumawa ng ticket (owner) lang
+// ang pwedeng magreply — hindi lahat ng miyembro ng department na 'yun.
+$isIT = ($user['department'] ?? '') === 'IT Department';
+
+$stmt = $pdo->prepare('SELECT created_by FROM tickets WHERE id = ?');
+$stmt->execute([$id]);
+$ticketRow = $stmt->fetch();
+
+if (!$ticketRow) {
+    http_response_code(404);
+    die(json_encode(['error' => 'Hindi nahanap ang ticket.']));
+}
+
+$isOwner = $ticketRow['created_by'] !== null && (int)$ticketRow['created_by'] === (int)$user['id'];
+
+if (!$isIT && !$isOwner) {
+    http_response_code(403);
+    die(json_encode(['error' => 'Ikaw lang na gumawa ng ticket na ito (o IT) ang pwedeng magreply dito.']));
+}
 
 $stmt = $pdo->prepare('INSERT INTO ticket_comments (ticket_id, author, message) VALUES (?, ?, ?)');
 $stmt->execute([$id, $user['fullname'], $text]);

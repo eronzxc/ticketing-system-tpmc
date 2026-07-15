@@ -21,6 +21,7 @@ if (!$ticket) {
 
 $ticket['attachments'] = $ticket['attachments_json'] ? json_decode($ticket['attachments_json'], true) : [];
 unset($ticket['attachments_json']);
+$ticket['created_by'] = $ticket['created_by'] !== null ? (int)$ticket['created_by'] : null;
 
 $stmt = $pdo->prepare('SELECT author, message AS text, created_at AS createdAt FROM ticket_comments WHERE ticket_id = ? ORDER BY created_at ASC');
 $stmt->execute([$id]);

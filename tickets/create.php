@@ -11,14 +11,20 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $input = json_decode(file_get_contents('php://input'), true) ?? [];
 
-$requester   = trim($input['requester'] ?? '');
-$department  = trim($input['department'] ?? '');
+$user = currentUser();
+
+// Yung requester at department ay kinukuha na mula sa naka-login na account
+// (hindi na basta text field na pwedeng palitan), para tama at totoo yung
+// pagka-link ng ticket sa account na gumawa nito.
+$requester   = $user['fullname'];
+$department  = $user['department'];
+$createdBy   = $user['id'];
 $category    = trim($input['category'] ?? '');
 $priority    = trim($input['priority'] ?? '');
 $description = trim($input['description'] ?? '');
 $attachments = $input['attachments'] ?? [];
 
-if ($requester === '' || $department === '' || $description === '') {
+if ($description === '') {
     http_response_code(400);
     die(json_encode(['error' => 'Kulang ang mga required fields.']));
 }
@@ -41,10 +47,10 @@ $dueDate = date('Y-m-d H:i:s', strtotime("+$dueDays days"));
 $attachmentsJson = !empty($attachments) ? json_encode($attachments) : null;
 
 $stmt = $pdo->prepare(
-    'INSERT INTO tickets (id, requester, department, category, priority, description, status, due_date, attachments_json)
-     VALUES (?, ?, ?, ?, ?, ?, "Open", ?, ?)'
+    'INSERT INTO tickets (id, requester, department, category, priority, description, status, due_date, attachments_json, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, "Open", ?, ?, ?)'
 );
-$stmt->execute([$ticketId, $requester, $department, $category, $priority, $description, $dueDate, $attachmentsJson]);
+$stmt->execute([$ticketId, $requester, $department, $category, $priority, $description, $dueDate, $attachmentsJson, $createdBy]);
 
 $stmt = $pdo->prepare('SELECT * FROM tickets WHERE id = ?');
 $stmt->execute([$ticketId]);

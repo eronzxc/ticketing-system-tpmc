@@ -356,7 +356,7 @@
   </div>
   <header>
     <div>
-      <h1>TPMC IT concern desk</h1>
+      <h1>TPMC IT Concern Desk</h1>
       <p class="sub">Submit and track IT concerns across the hospital</p>
     </div>
     <div class="tabs">
@@ -612,6 +612,14 @@ function isIT() {
   return !!(currentUser && currentUser.department === 'IT Department');
 }
 
+// Person-to-person lang: IT, o yung talagang gumawa ng ticket (owner) lang
+// ang makakareply — hindi lahat ng miyembro ng department na 'yun.
+function canReplyTo(t) {
+  if (!currentUser) return false;
+  if (isIT()) return true;
+  return t.created_by !== null && t.created_by !== undefined && Number(t.created_by) === Number(currentUser.id);
+}
+
 function openSubmitModal() {
   document.getElementById('submitForm').classList.remove('hidden');
   document.getElementById('submitSuccess').classList.add('hidden');
@@ -622,6 +630,18 @@ function openSubmitModal() {
   confirmBtn.textContent = 'Create';
   confirmBtn.setAttribute('onclick', 'submitTicket()');
   document.getElementById('submitView').classList.remove('hidden');
+
+  // Name at Department ay kinukuha na mula sa naka-login na account
+  // (server-side na rin ang nagpapatupad nito), kaya naka-lock na lang ito rito.
+  const nameEl = document.getElementById('f_requester');
+  const deptEl = document.getElementById('f_department');
+  if (currentUser) {
+    nameEl.value = currentUser.fullname;
+    nameEl.disabled = true;
+    deptEl.value = currentUser.department;
+    deptEl.disabled = true;
+    toggleOtherDept();
+  }
 }
 
 function closeSubmitModal() {
@@ -1119,7 +1139,7 @@ function renderTicketDetail(id) {
       <div class="detail-comment">${escapeHTML(t.description)}</div>
       ${attachmentHTML}
       <div class="detail-replies" style="margin-top:20px;">
-        <label class="meta" style="display:block;margin-bottom:8px;">IT replies</label>
+        <label class="meta" style="display:block;margin-bottom:8px;">Replies</label>
         ${
           (Array.isArray(t.comments) && t.comments.length)
             ? t.comments.map(c => `
@@ -1130,10 +1150,10 @@ function renderTicketDetail(id) {
         }
       </div>
       ${
-        isIT()
+        canReplyTo(t)
           ? `<div class="field" style="margin-top:12px;">
               <label>Post a reply</label>
-              <textarea id="replyText_${t.id}" placeholder="Type your reply to the requester..."></textarea>
+              <textarea id="replyText_${t.id}" placeholder="Type your reply..."></textarea>
               <button class="primary" style="width:auto;margin-top:8px;" onclick="postReply('${t.id}')">Send reply</button>
             </div>`
           : ``

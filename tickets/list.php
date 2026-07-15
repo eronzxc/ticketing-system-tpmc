@@ -10,6 +10,7 @@ $rows = $stmt->fetchAll();
 $tickets = array_map(function ($row) {
     $row['attachments'] = $row['attachments_json'] ? json_decode($row['attachments_json'], true) : [];
     unset($row['attachments_json']);
+    $row['created_by'] = $row['created_by'] !== null ? (int)$row['created_by'] : null;
     return $row;
 }, $rows);
 
