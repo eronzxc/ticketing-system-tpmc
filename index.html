@@ -598,27 +598,9 @@
 </div>
 
 <script>
-// Tickets pa rin sa localStorage (susunod na step); auth na gamit MySQL/PHP
-const STORE_KEY = "tpmc_tickets";
-const SEQ_KEY = "tpmc_seq";
-
-// Kung ibang folder ang pinaglagyan ng PHP files sa htdocs, i-adjust ito.
-// Dapat WALANG SPACE ang folder name sa htdocs (mag-i-issue ang URL kung may space).
+// Auth at tickets na parehong gamit MySQL/PHP
 const API_AUTH = "/ticketing-system-tpmc/auth";
-
-function readStore() {
-  try { return JSON.parse(localStorage.getItem(STORE_KEY) || "[]"); }
-  catch { return []; }
-}
-function writeStore(list) {
-  localStorage.setItem(STORE_KEY, JSON.stringify(list));
-}
-function readSeq() {
-  return Number(localStorage.getItem(SEQ_KEY) || "0");
-}
-function writeSeq(n) {
-  localStorage.setItem(SEQ_KEY, String(n));
-}
+const API_TICKETS = "/ticketing-system-tpmc/tickets";
 
 let tickets = [];
 let currentUser = null;
@@ -736,8 +718,7 @@ function enterDashboard(user) {
   label.textContent = `${user.fullname} (${user.department})`;
   label.classList.remove('hidden');
   document.getElementById('logoutBtn').classList.remove('hidden');
-  tickets = readStore();
-  renderTickets();
+  loadTickets();
 }
 
 async function logout() {
@@ -763,10 +744,34 @@ async function tryRestoreSession() {
 }
 tryRestoreSession();
 
-function nextTicketNumber() {
-  const next = readSeq() + 1;
-  writeSeq(next);
-  return next;
+function normalizeTicket(t) {
+  return {
+    id: t.id,
+    requester: t.requester,
+    department: t.department,
+    category: t.category,
+    priority: t.priority,
+    description: t.description,
+    status: t.status,
+    createdAt: t.created_at || t.createdAt,
+    updatedAt: t.updated_at || t.updatedAt,
+    dueDate: t.due_date || t.dueDate,
+    resolvedAt: t.resolved_at || t.resolvedAt || null,
+    resolvedBy: t.resolved_by || t.resolvedBy || null,
+    attachments: t.attachments || [],
+    comments: t.comments || []
+  };
+}
+
+async function loadTickets() {
+  try {
+    const res = await fetch(`${API_TICKETS}/list.php`, { credentials: 'include' });
+    const data = await res.json();
+    tickets = (data.tickets || []).map(normalizeTicket);
+  } catch (e) {
+    tickets = [];
+  }
+  renderTickets();
 }
 
 function toggleOtherDept() {
@@ -845,7 +850,7 @@ function removeFile(index) {
   renderFilePreview();
 }
 
-function submitTicket() {
+async function submitTicket() {
   const requester = document.getElementById('f_requester').value.trim();
   const deptSelect = document.getElementById('f_department').value;
   const deptOther = document.getElementById('f_department_other').value.trim();
@@ -862,21 +867,28 @@ function submitTicket() {
   }
   errEl.classList.add('hidden');
 
-  const seq = nextTicketNumber();
-  const year = new Date().getFullYear();
-  const ticketId = `IT-${year}-${String(seq).padStart(4, '0')}`;
-  const now = new Date();
-  const dueDays = { Urgent: 1, High: 2, Medium: 3, Low: 5 }[priority] || 3;
-  const dueDate = new Date(now.getTime() + dueDays * 24 * 60 * 60 * 1000).toISOString();
-  const ticket = {
-    id: ticketId, requester, department, category, priority, description,
-    status: "Open", createdAt: now.toISOString(), updatedAt: now.toISOString(), dueDate,
-    attachments: selectedFiles.map(f => ({ name: f.name, type: f.type, dataUrl: f.dataUrl }))
-  };
+  const attachments = selectedFiles.map(f => ({ name: f.name, type: f.type, dataUrl: f.dataUrl }));
 
-  const list = readStore();
-  list.unshift(ticket);
-  writeStore(list);
+  let ticket;
+  try {
+    const res = await fetch(`${API_TICKETS}/create.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ requester, department, category, priority, description, attachments })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.textContent = data.error || "May naganap na error sa pag-submit.";
+      errEl.classList.remove('hidden');
+      return;
+    }
+    ticket = normalizeTicket(data.ticket);
+  } catch (e) {
+    errEl.textContent = "Hindi ma-reach ang server. Tiyaking naka-start ang Apache/MySQL sa XAMPP.";
+    errEl.classList.remove('hidden');
+    return;
+  }
 
   document.getElementById('successTicket').innerHTML = ticketHTML(ticket, false);
   document.getElementById('submitForm').classList.add('hidden');
@@ -888,8 +900,7 @@ function submitTicket() {
   selectedFiles = [];
   document.getElementById('f_attachment').value = '';
   if (!document.getElementById('dashboard').classList.contains('hidden')) {
-    tickets = readStore();
-    renderTickets();
+    loadTickets();
   }
 }
 
@@ -957,37 +968,37 @@ function escapeHTML(str) {
 
 let selectedTicketId = null;
 
-function updateStatus(id, status) {
+async function updateStatus(id, status) {
   if (!isIT()) return;
-  const now = new Date().toISOString();
-  const list = readStore().map(t => {
-    if (t.id !== id) return t;
-    const updated = { ...t, status, updatedAt: now };
-    if (status === 'Resolved') {
-      updated.resolvedAt = now;
-      updated.resolvedBy = currentUser.fullname;
-    } else {
-      updated.resolvedAt = null;
-      updated.resolvedBy = null;
-    }
-    return updated;
-  });
-  writeStore(list);
-  tickets = list;
-  renderTickets();
-  if (selectedTicketId === id) renderTicketDetail(id);
+  try {
+    const res = await fetch(`${API_TICKETS}/update_status.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ id, status })
+    });
+    if (!res.ok) return;
+  } catch (e) { return; }
+  await loadTickets();
+  if (selectedTicketId === id) openTicketDetail(id);
 }
 
-function postReply(id) {
+async function postReply(id) {
   if (!isIT()) return;
   const textEl = document.getElementById('replyText_' + id);
   const text = textEl ? textEl.value.trim() : '';
   if (!text) return;
-  const comment = { author: currentUser.fullname, text, createdAt: new Date().toISOString() };
-  const list = readStore().map(t => t.id === id ? { ...t, comments: [...(t.comments || []), comment], updatedAt: new Date().toISOString() } : t);
-  writeStore(list);
-  tickets = list;
-  if (selectedTicketId === id) renderTicketDetail(id);
+  try {
+    const res = await fetch(`${API_TICKETS}/reply.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ id, text })
+    });
+    if (!res.ok) return;
+  } catch (e) { return; }
+  await loadTickets();
+  if (selectedTicketId === id) openTicketDetail(id);
 }
 
 function summaryOf(t) {
@@ -1051,11 +1062,19 @@ function renderTickets() {
   }
 }
 
-function openTicketDetail(id) {
+async function openTicketDetail(id) {
   selectedTicketId = id;
-  renderTicketDetail(id);
   renderTickets();
   document.getElementById('ticketDetail').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  try {
+    const res = await fetch(`${API_TICKETS}/get.php?id=${encodeURIComponent(id)}`, { credentials: 'include' });
+    const data = await res.json();
+    if (res.ok && data.ticket) {
+      const full = normalizeTicket(data.ticket);
+      tickets = tickets.map(t => t.id === id ? { ...t, ...full } : t);
+    }
+  } catch (e) { /* mananatili yung existing data sa memory */ }
+  if (selectedTicketId === id) renderTicketDetail(id);
 }
 
 function closeTicketDetail() {
