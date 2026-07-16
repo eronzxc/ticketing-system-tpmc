@@ -43,6 +43,75 @@
     color: var(--ink);
   }
   .tab-btn.active { border-color: var(--teal); color: var(--teal-dark); background: var(--teal-tint); }
+
+  .user-menu { position: relative; }
+  .user-menu-trigger {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 6px 12px 6px 6px;
+    border-radius: 999px;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  .user-menu-trigger:hover { border-color: var(--teal); }
+  .user-menu-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--teal-tint);
+    color: var(--teal-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .user-menu-name { font-size: 13px; font-weight: 500; }
+  .user-menu-chevron {
+    width: 8px;
+    height: 8px;
+    border-right: 1.5px solid var(--ink-secondary);
+    border-bottom: 1.5px solid var(--ink-secondary);
+    transform: rotate(45deg);
+    margin-top: -3px;
+    transition: transform 0.15s ease;
+  }
+  .user-menu.open .user-menu-chevron { transform: rotate(225deg); margin-top: 3px; }
+  .user-menu-panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 200px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    padding: 10px 0;
+    z-index: 20;
+  }
+  .user-menu-dept {
+    padding: 2px 14px 10px;
+    font-size: 12px;
+    color: var(--ink-secondary);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 6px;
+  }
+  .user-menu-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    padding: 8px 14px;
+    font-size: 13px;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .user-menu-item:hover { background: var(--surface-2, #f4f4f4); }
   .card {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -360,8 +429,17 @@
       <p class="sub">Submit and track IT concerns across the hospital</p>
     </div>
     <div class="tabs">
-      <span id="loggedInAs" class="meta hidden" style="margin-right:4px;"></span>
-      <button class="tab-btn hidden" id="logoutBtn" onclick="logout()">Logout</button>
+      <div class="user-menu hidden" id="userMenu">
+        <button class="user-menu-trigger" id="userMenuTrigger" onclick="toggleUserMenu()">
+          <span class="user-menu-avatar" id="userMenuAvatar"></span>
+          <span class="user-menu-name" id="userMenuName"></span>
+          <span class="user-menu-chevron"></span>
+        </button>
+        <div class="user-menu-panel hidden" id="userMenuPanel">
+          <div class="user-menu-dept" id="userMenuDept"></div>
+          <button class="user-menu-item" onclick="logout()">Logout</button>
+        </div>
+      </div>
       <button class="tab-btn active" id="tabSubmitBtn" onclick="openSubmitModal()">+ Submit a concern</button>
     </div>
   </header>
@@ -785,29 +863,52 @@ async function login() {
   }
 }
 
+function initials(fullname) {
+  const parts = fullname.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 function enterDashboard(user) {
   currentUser = { fullname: user.fullname, username: user.username, department: user.department };
   document.getElementById('authGate').classList.add('hidden');
   document.getElementById('dashboard').classList.remove('hidden');
-  const label = document.getElementById('loggedInAs');
-  label.textContent = `${user.fullname} (${user.department})`;
-  label.classList.remove('hidden');
-  document.getElementById('logoutBtn').classList.remove('hidden');
+  document.getElementById('userMenuAvatar').textContent = initials(user.fullname);
+  document.getElementById('userMenuName').textContent = user.fullname;
+  document.getElementById('userMenuDept').textContent = user.department;
+  document.getElementById('userMenu').classList.remove('hidden');
   loadTickets();
 }
+
+function toggleUserMenu() {
+  const menu = document.getElementById('userMenu');
+  const panel = document.getElementById('userMenuPanel');
+  const isOpen = menu.classList.toggle('open');
+  panel.classList.toggle('hidden', !isOpen);
+}
+
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('userMenu');
+  if (menu && menu.classList.contains('open') && !menu.contains(e.target)) {
+    menu.classList.remove('open');
+    document.getElementById('userMenuPanel').classList.add('hidden');
+  }
+});
 
 async function logout() {
   currentUser = null;
   try {
     await fetch(`${API_AUTH}/logout.php`, { method: 'POST', credentials: 'include' });
-  } catch (e) { /* fine, magpatuloy pa rin sa client-side logout */ }
+  } catch (e) { /* fine, proceed with client-side logout anyway */ }
   document.getElementById('dashboard').classList.add('hidden');
   document.getElementById('authGate').classList.remove('hidden');
   showLogin();
   document.getElementById('login_username').value = '';
   document.getElementById('login_password').value = '';
-  document.getElementById('loggedInAs').classList.add('hidden');
-  document.getElementById('logoutBtn').classList.add('hidden');
+  document.getElementById('userMenu').classList.add('hidden');
+  document.getElementById('userMenu').classList.remove('open');
+  document.getElementById('userMenuPanel').classList.add('hidden');
 }
 
 async function tryRestoreSession() {
@@ -815,7 +916,7 @@ async function tryRestoreSession() {
     const res = await fetch(`${API_AUTH}/me.php`, { credentials: 'include' });
     const data = await res.json();
     if (data.user) enterDashboard(data.user);
-  } catch (e) { /* wala lang, mananatili sa login screen */ }
+  } catch (e) { /* fine, stay on the login screen */ }
 }
 tryRestoreSession();
 
