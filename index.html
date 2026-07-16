@@ -383,6 +383,7 @@
             <label>Department / Unit</label>
             <select id="f_department" onchange="toggleOtherDept()">
               <option value="">Select department...</option>
+              <option>IT Department</option>
               <option>Emergency Room</option>
               <option>Outpatient Department</option>
               <option>Station 3A</option>
@@ -677,15 +678,23 @@ function openSubmitModal() {
   confirmBtn.setAttribute('onclick', 'submitTicket()');
   document.getElementById('submitView').classList.remove('hidden');
 
-  // Name and Department are taken from the logged-in account
-  // (also enforced server-side), so they're locked here.
+  // Name and Department are prefilled from the logged-in account so the
+  // user doesn't have to retype/re-scroll every time, but both stay
+  // editable in case they need to submit on behalf of someone else or
+  // pick a different unit.
   const nameEl = document.getElementById('f_requester');
   const deptEl = document.getElementById('f_department');
   if (currentUser) {
     nameEl.value = currentUser.fullname;
-    nameEl.disabled = true;
-    deptEl.value = currentUser.department;
-    deptEl.disabled = true;
+    const knownDepts = Array.from(deptEl.options).map(o => o.value).filter(v => v && v !== 'Others');
+    if (knownDepts.includes(currentUser.department)) {
+      deptEl.value = currentUser.department;
+      document.getElementById('f_department_other').classList.add('hidden');
+    } else {
+      deptEl.value = 'Others';
+      document.getElementById('f_department_other').classList.remove('hidden');
+      document.getElementById('f_department_other').value = currentUser.department || '';
+    }
     toggleOtherDept();
   }
 }
