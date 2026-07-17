@@ -528,6 +528,11 @@
           <textarea id="f_description" placeholder="Describe the issue..."></textarea>
         </div>
         <div class="field">
+          <label>Preferred due date (optional)</label>
+          <input type="date" id="f_due_date">
+          <p class="meta" style="margin-top:4px;">Leave blank to use the default deadline based on priority.</p>
+        </div>
+        <div class="field">
           <label>Attach photo/file (optional)</label>
           <label class="file-drop" id="fileDropLabel">
             <span id="fileDropText">Click to attach photos/files (max 2MB each)</span>
@@ -1159,12 +1164,21 @@ async function submitTicket() {
   const category = document.getElementById('f_category').value;
   const priority = document.getElementById('f_priority').value;
   const description = document.getElementById('f_description').value.trim();
+  const dueDateInput = document.getElementById('f_due_date').value;
   const errEl = document.getElementById('submitError');
 
   if (!requester || !department || !description) {
     errEl.textContent = "Please fill in all required fields.";
     errEl.classList.remove('hidden');
     return;
+  }
+  if (dueDateInput) {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (dueDateInput < todayStr) {
+      errEl.textContent = "Due date cannot be in the past.";
+      errEl.classList.remove('hidden');
+      return;
+    }
   }
   errEl.classList.add('hidden');
 
@@ -1176,7 +1190,7 @@ async function submitTicket() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ requester, department, category, priority, description, attachments })
+      body: JSON.stringify({ requester, department, category, priority, description, attachments, dueDate: dueDateInput || null })
     });
     const data = await res.json();
     if (!res.ok) {
@@ -1200,6 +1214,7 @@ async function submitTicket() {
   document.getElementById('submitConfirmBtn').setAttribute('onclick', 'closeSubmitModal()');
   selectedFiles = [];
   document.getElementById('f_attachment').value = '';
+  document.getElementById('f_due_date').value = '';
   if (!document.getElementById('dashboard').classList.contains('hidden')) {
     loadTickets();
   }
@@ -1213,6 +1228,7 @@ function resetForm() {
   document.getElementById('f_description').value = '';
   document.getElementById('f_category').selectedIndex = 0;
   document.getElementById('f_priority').selectedIndex = 1;
+  document.getElementById('f_due_date').value = '';
   selectedFiles = [];
   document.getElementById('f_attachment').value = '';
   renderFilePreview();

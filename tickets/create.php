@@ -44,7 +44,15 @@ $ticketId = sprintf('IT-%s-%04d', $year, $nextNum);
 
 $dueDaysMap = ['Urgent' => 1, 'High' => 2, 'Medium' => 3, 'Low' => 5];
 $dueDays = $dueDaysMap[$priority] ?? 3;
-$dueDate = date('Y-m-d H:i:s', strtotime("+$dueDays days"));
+
+$customDueDate = trim($input['dueDate'] ?? '');
+if ($customDueDate !== '') {
+    // Requester specified their own preferred deadline (date only, e.g. "2026-07-20")
+    $dueDate = date('Y-m-d H:i:s', strtotime($customDueDate . ' 23:59:59'));
+} else {
+    // Fallback: auto-computed based on priority
+    $dueDate = date('Y-m-d H:i:s', strtotime("+$dueDays days"));
+}
 
 $attachmentsJson = !empty($attachments) ? json_encode($attachments) : null;
 
