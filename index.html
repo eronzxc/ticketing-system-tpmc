@@ -601,6 +601,23 @@
     </div>
   </div>
 
+  <div id="replySaveConfirmView" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Save reply</h2>
+        <button class="ticket-detail-close" onclick="closeReplySaveConfirm()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="sub">Save changes to this reply?</p>
+        <p class="err hidden" id="replySaveConfirmError" style="margin-top:8px;"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeReplySaveConfirm()">Cancel</button>
+        <button class="primary" id="replySaveConfirmBtn" style="width:auto;" onclick="confirmSaveCommentEdit()">Yes, save changes</button>
+      </div>
+    </div>
+  </div>
+
   <div id="adminView">
     <div id="authGate" class="pin-box" style="max-width:380px;text-align:left;">
       <div id="loginForm">
@@ -992,12 +1009,26 @@ function cancelCommentEdit(ticketId) {
   renderTicketDetail(ticketId);
 }
 
-async function saveCommentEdit(ticketId, commentId) {
+let pendingReplySave = null;
+
+function saveCommentEdit(ticketId, commentId) {
   const textEl = document.getElementById('editReplyText_' + commentId);
-  const errEl = document.getElementById('editReplyError_' + commentId);
   const text = textEl ? textEl.value.trim() : '';
   if (!text) return;
-  if (!confirm('Save changes to this reply?')) return;
+  pendingReplySave = { ticketId, commentId, text };
+  document.getElementById('replySaveConfirmError').classList.add('hidden');
+  document.getElementById('replySaveConfirmView').classList.remove('hidden');
+}
+
+function closeReplySaveConfirm() {
+  pendingReplySave = null;
+  document.getElementById('replySaveConfirmView').classList.add('hidden');
+}
+
+async function confirmSaveCommentEdit() {
+  if (!pendingReplySave) return;
+  const { ticketId, commentId, text } = pendingReplySave;
+  const errEl = document.getElementById('replySaveConfirmError');
   try {
     const res = await fetch(`${API_TICKETS}/comment_update.php`, {
       method: 'POST',
@@ -1007,15 +1038,19 @@ async function saveCommentEdit(ticketId, commentId) {
     });
     const data = await res.json();
     if (!res.ok) {
-      if (errEl) { errEl.textContent = data.error || 'Something went wrong.'; errEl.classList.remove('hidden'); }
+      errEl.textContent = data.error || 'Something went wrong.';
+      errEl.classList.remove('hidden');
       return;
     }
     const idx = tickets.findIndex(x => x.id === ticketId);
     if (idx !== -1) tickets[idx] = { ...tickets[idx], comments: data.comments || [] };
     editingCommentId = null;
+    pendingReplySave = null;
+    document.getElementById('replySaveConfirmView').classList.add('hidden');
     renderTicketDetail(ticketId);
   } catch (e) {
-    if (errEl) { errEl.textContent = 'Could not connect to the server.'; errEl.classList.remove('hidden'); }
+    errEl.textContent = 'Could not connect to the server.';
+    errEl.classList.remove('hidden');
   }
 }
 
