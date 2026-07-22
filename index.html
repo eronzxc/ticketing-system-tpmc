@@ -144,6 +144,18 @@
     width: 100%;
   }
   button.primary:hover { background: var(--teal-dark); }
+  .modal-footer button.danger {
+    background: #c0392b;
+    color: #fff;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .modal-footer button.danger:hover { background: #a5301f; }
+  .modal-footer button.danger:disabled { opacity: 0.6; cursor: not-allowed; }
   .ticket {
     display: flex;
     background: var(--surface);
@@ -696,6 +708,23 @@
     </div>
   </div>
 
+  <div id="deleteConfirmView" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Delete ticket</h2>
+        <button class="ticket-detail-close" onclick="closeDeleteConfirm()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="sub" id="deleteConfirmMsg"></p>
+        <p class="err hidden" id="deleteConfirmError" style="margin-top:8px;"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeDeleteConfirm()">Cancel</button>
+        <button class="danger" id="deleteConfirmBtn" style="width:auto;" onclick="performDeleteTicket()">Yes, delete this ticket</button>
+      </div>
+    </div>
+  </div>
+
   <div id="deletedView" class="modal-overlay hidden">
     <div class="modal-card" style="max-width:900px;">
       <div class="modal-header">
@@ -703,7 +732,7 @@
         <button class="ticket-detail-close" onclick="closeDeletedModal()">✕</button>
       </div>
       <div class="modal-body">
-        <p class="sub" style="margin-bottom:12px;">Naka-soft-delete lang ang mga ito — hindi pa binura sa database. Pwede pa ibalik.</p>
+        <p class="sub" style="margin-bottom:12px;">These are soft-deleted only — not yet erased from the database. They can still be restored.</p>
         <div class="ticket-table-wrap" style="margin-bottom:0;">
           <table class="ticket-table" style="min-width:0;">
             <thead>
@@ -1671,30 +1700,57 @@ function closeRowContextMenu() {
   if (menu) menu.remove();
 }
 
+let pendingDeleteId = null;
+
 function confirmDeleteTicket(id) {
+  pendingDeleteId = id;
   const msg = isIT()
-    ? `Sigurado ka bang i-delete ang ticket ${id}? Maalis ito sa listahan, pero pwede pa itong ibalik sa "Recently deleted" ng IT.`
-    : `Sigurado ka bang i-delete ang ticket ${id}? Maalis ito sa listahan.`;
-  if (!confirm(msg)) return;
-  deleteTicket(id);
+    ? `Are you sure you want to delete ticket ${id}? It will be removed from the list, but it can still be restored by IT from "Recently deleted".`
+    : `Are you sure you want to delete ticket ${id}? It will be removed from the list.`;
+  document.getElementById('deleteConfirmMsg').textContent = msg;
+  document.getElementById('deleteConfirmError').classList.add('hidden');
+  document.getElementById('deleteConfirmError').textContent = '';
+  document.getElementById('deleteConfirmView').classList.remove('hidden');
+}
+
+function closeDeleteConfirm() {
+  document.getElementById('deleteConfirmView').classList.add('hidden');
+  pendingDeleteId = null;
+}
+
+async function performDeleteTicket() {
+  if (!pendingDeleteId) return;
+  const id = pendingDeleteId;
+  const btn = document.getElementById('deleteConfirmBtn');
+  const errEl = document.getElementById('deleteConfirmError');
+  errEl.classList.add('hidden');
+  btn.disabled = true;
+  try {
+    await deleteTicket(id);
+    closeDeleteConfirm();
+  } catch (e) {
+    errEl.textContent = e.message || 'Failed to delete the ticket. Please try again.';
+    errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 async function deleteTicket(id) {
+  let res, data;
   try {
-    const res = await fetch(`${API_TICKETS}/delete.php`, {
+    res = await fetch(`${API_TICKETS}/delete.php`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({ id })
     });
-    const data = await res.json();
-    if (!res.ok) {
-      alert(data.error || 'Hindi na-delete ang ticket.');
-      return;
-    }
+    data = await res.json();
   } catch (e) {
-    alert('Hindi na-delete ang ticket. Subukan ulit.');
-    return;
+    throw new Error('Failed to delete the ticket. Please try again.');
+  }
+  if (!res.ok) {
+    throw new Error(data.error || 'Failed to delete the ticket.');
   }
   tickets = tickets.filter(t => t.id !== id);
   if (selectedTicketId === id) closeTicketDetail();
@@ -1877,7 +1933,7 @@ async function loadDeletedTickets() {
     const data = await res.json();
     if (!res.ok) {
       body.innerHTML = '';
-      errEl.textContent = data.error || 'Hindi na-load ang recently deleted tickets.';
+      errEl.textContent = data.error || 'Failed to load recently deleted tickets.';
       errEl.classList.remove('hidden');
       return;
     }
@@ -1885,7 +1941,7 @@ async function loadDeletedTickets() {
     renderDeletedTable(data.tickets || []);
   } catch (e) {
     body.innerHTML = '';
-    errEl.textContent = 'Hindi na-load ang recently deleted tickets. Subukan ulit.';
+    errEl.textContent = 'Failed to load recently deleted tickets. Please try again.';
     errEl.classList.remove('hidden');
   }
 }
@@ -1914,7 +1970,7 @@ function renderDeletedTable(rows) {
 }
 
 async function restoreTicket(id) {
-  if (!confirm(`Ibalik ang ticket ${id} sa listahan?`)) return;
+  if (!confirm(`Restore ticket ${id} back to the list?`)) return;
   const errEl = document.getElementById('deletedError');
   try {
     const res = await fetch(`${API_TICKETS}/restore.php`, {
@@ -1925,12 +1981,12 @@ async function restoreTicket(id) {
     });
     const data = await res.json();
     if (!res.ok) {
-      errEl.textContent = data.error || 'Hindi na-restore ang ticket.';
+      errEl.textContent = data.error || 'Failed to restore the ticket.';
       errEl.classList.remove('hidden');
       return;
     }
   } catch (e) {
-    errEl.textContent = 'Hindi na-restore ang ticket. Subukan ulit.';
+    errEl.textContent = 'Failed to restore the ticket. Please try again.';
     errEl.classList.remove('hidden');
     return;
   }
