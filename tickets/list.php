@@ -4,7 +4,7 @@ require_once __DIR__ . '/../config/session.php';
 
 requireLogin();
 
-$stmt = $pdo->query('SELECT * FROM tickets ORDER BY created_at DESC');
+$stmt = $pdo->query('SELECT * FROM tickets WHERE deleted_at IS NULL ORDER BY created_at DESC');
 $rows = $stmt->fetchAll();
 
 $tickets = array_map(function ($row) {

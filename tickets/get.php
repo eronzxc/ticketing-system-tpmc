@@ -14,7 +14,7 @@ $stmt = $pdo->prepare('SELECT * FROM tickets WHERE id = ?');
 $stmt->execute([$id]);
 $ticket = $stmt->fetch();
 
-if (!$ticket) {
+if (!$ticket || $ticket['deleted_at'] !== null) {
     http_response_code(404);
     die(json_encode(['error' => 'Ticket not found.']));
 }

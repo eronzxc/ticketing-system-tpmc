@@ -1546,6 +1546,7 @@ function showRowContextMenu(evt, id) {
   selectedTicketId = id;
   renderTickets();
   const t = tickets.find(x => x.id === id);
+  const canDelete = t && currentUser && (isIT() || (t.created_by !== null && Number(t.created_by) === Number(currentUser.id)));
   const menu = document.createElement('div');
   menu.className = 'row-context-menu';
   menu.id = 'rowContextMenu';
@@ -1553,10 +1554,14 @@ function showRowContextMenu(evt, id) {
   if (t && isIT()) {
     html += `<button onclick="closeRowContextMenu(); openEditModal('${id}')">✎ Edit</button>`;
   }
+  if (canDelete) {
+    html += `<hr><button class="danger" onclick="closeRowContextMenu(); confirmDeleteTicket('${id}')">🗑 Delete</button>`;
+  }
   menu.innerHTML = html;
   document.body.appendChild(menu);
+  const rowCount = 1 + (t && isIT() ? 1 : 0) + (canDelete ? 1 : 0);
   const x = Math.min(evt.clientX, window.innerWidth - 180);
-  const y = Math.min(evt.clientY, window.innerHeight - (t && isIT() ? 100 : 70));
+  const y = Math.min(evt.clientY, window.innerHeight - (36 * rowCount + 24));
   menu.style.left = x + 'px';
   menu.style.top = y + 'px';
   setTimeout(() => {
@@ -1567,6 +1572,33 @@ function showRowContextMenu(evt, id) {
 function closeRowContextMenu() {
   const menu = document.getElementById('rowContextMenu');
   if (menu) menu.remove();
+}
+
+function confirmDeleteTicket(id) {
+  if (!confirm(`Sigurado ka bang i-delete ang ticket ${id}? Hindi na ito maibabalik sa listahan.`)) return;
+  deleteTicket(id);
+}
+
+async function deleteTicket(id) {
+  try {
+    const res = await fetch(`${API_TICKETS}/delete.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ id })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || 'Hindi na-delete ang ticket.');
+      return;
+    }
+  } catch (e) {
+    alert('Hindi na-delete ang ticket. Subukan ulit.');
+    return;
+  }
+  tickets = tickets.filter(t => t.id !== id);
+  if (selectedTicketId === id) closeTicketDetail();
+  renderTickets();
 }
 
 async function openTicketDetail(id) {
