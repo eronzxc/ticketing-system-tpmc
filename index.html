@@ -530,7 +530,7 @@
           <button class="user-menu-item" onclick="logout()">Logout</button>
         </div>
       </div>
-      <button class="tab-btn active" id="tabSubmitBtn" onclick="openSubmitModal()">+ Submit a concern</button>
+      <button class="tab-btn active hidden" id="tabSubmitBtn" onclick="openSubmitModal()">+ Submit a concern</button>
     </div>
   </header>
 
@@ -1060,6 +1060,7 @@ function enterDashboard(user) {
   document.getElementById('userMenuName').textContent = user.fullname;
   document.getElementById('userMenuDept').textContent = user.department;
   document.getElementById('userMenu').classList.remove('hidden');
+  document.getElementById('tabSubmitBtn').classList.remove('hidden');
   document.getElementById('deletedMenuItem').classList.toggle('hidden', !isIT());
   loadTickets();
 }
@@ -1090,6 +1091,7 @@ async function logout() {
   document.getElementById('login_username').value = '';
   document.getElementById('login_password').value = '';
   document.getElementById('userMenu').classList.add('hidden');
+  document.getElementById('tabSubmitBtn').classList.add('hidden');
   document.getElementById('userMenu').classList.remove('open');
   document.getElementById('userMenuPanel').classList.add('hidden');
 }
