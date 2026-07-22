@@ -514,6 +514,7 @@
         </button>
         <div class="user-menu-panel hidden" id="userMenuPanel">
           <div class="user-menu-dept" id="userMenuDept"></div>
+          <button class="user-menu-item hidden" id="deletedMenuItem" onclick="toggleUserMenu(); openDeletedModal();">🗑 Recently deleted</button>
           <button class="user-menu-item" onclick="logout()">Logout</button>
         </div>
       </div>
@@ -691,6 +692,38 @@
       <div class="modal-footer">
         <button class="btn-secondary" onclick="closeReplySaveConfirm()">Cancel</button>
         <button class="primary" id="replySaveConfirmBtn" style="width:auto;" onclick="confirmSaveCommentEdit()">Yes, save changes</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="deletedView" class="modal-overlay hidden">
+    <div class="modal-card" style="max-width:900px;">
+      <div class="modal-header">
+        <h2>Recently deleted tickets</h2>
+        <button class="ticket-detail-close" onclick="closeDeletedModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="sub" style="margin-bottom:12px;">Naka-soft-delete lang ang mga ito — hindi pa binura sa database. Pwede pa ibalik.</p>
+        <div class="ticket-table-wrap" style="margin-bottom:0;">
+          <table class="ticket-table" style="min-width:0;">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Summary</th>
+                <th>Requester</th>
+                <th>Department</th>
+                <th>Deleted at</th>
+                <th>Deleted by</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="deletedTableBody"></tbody>
+          </table>
+        </div>
+        <p class="err hidden" id="deletedError" style="margin-top:10px;"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeDeletedModal()">Close</button>
       </div>
     </div>
   </div>
@@ -998,6 +1031,7 @@ function enterDashboard(user) {
   document.getElementById('userMenuName').textContent = user.fullname;
   document.getElementById('userMenuDept').textContent = user.department;
   document.getElementById('userMenu').classList.remove('hidden');
+  document.getElementById('deletedMenuItem').classList.toggle('hidden', !isIT());
   loadTickets();
 }
 
@@ -1638,7 +1672,10 @@ function closeRowContextMenu() {
 }
 
 function confirmDeleteTicket(id) {
-  if (!confirm(`Sigurado ka bang i-delete ang ticket ${id}? Hindi na ito maibabalik sa listahan.`)) return;
+  const msg = isIT()
+    ? `Sigurado ka bang i-delete ang ticket ${id}? Maalis ito sa listahan, pero pwede pa itong ibalik sa "Recently deleted" ng IT.`
+    : `Sigurado ka bang i-delete ang ticket ${id}? Maalis ito sa listahan.`;
+  if (!confirm(msg)) return;
   deleteTicket(id);
 }
 
@@ -1817,6 +1854,89 @@ function renderTicketDetail(id) {
     </div>
   `;
   panel.classList.remove('hidden');
+}
+
+// ===== Recently deleted (IT-only undo for soft-deleted tickets) =====
+async function openDeletedModal() {
+  if (!isIT()) return;
+  document.getElementById('deletedError').classList.add('hidden');
+  document.getElementById('deletedTableBody').innerHTML = `<tr><td colspan="7" class="center-msg">Loading...</td></tr>`;
+  document.getElementById('deletedView').classList.remove('hidden');
+  await loadDeletedTickets();
+}
+
+function closeDeletedModal() {
+  document.getElementById('deletedView').classList.add('hidden');
+}
+
+async function loadDeletedTickets() {
+  const errEl = document.getElementById('deletedError');
+  const body = document.getElementById('deletedTableBody');
+  try {
+    const res = await fetch(`${API_TICKETS}/list_deleted.php`, { credentials: 'include' });
+    const data = await res.json();
+    if (!res.ok) {
+      body.innerHTML = '';
+      errEl.textContent = data.error || 'Hindi na-load ang recently deleted tickets.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+    errEl.classList.add('hidden');
+    renderDeletedTable(data.tickets || []);
+  } catch (e) {
+    body.innerHTML = '';
+    errEl.textContent = 'Hindi na-load ang recently deleted tickets. Subukan ulit.';
+    errEl.classList.remove('hidden');
+  }
+}
+
+function renderDeletedTable(rows) {
+  const body = document.getElementById('deletedTableBody');
+  if (!rows.length) {
+    body.innerHTML = `<tr><td colspan="7" class="center-msg">Walang deleted tickets.</td></tr>`;
+    return;
+  }
+  body.innerHTML = rows.map(row => {
+    const t = normalizeTicket(row);
+    const deletedAtStr = row.deleted_at ? new Date(row.deleted_at).toLocaleString('en-PH',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
+    const deletedBy = row.deleted_by ? escapeHTML(row.deleted_by) : '—';
+    return `
+      <tr>
+        <td class="td-id">${escapeHTML(t.id)}</td>
+        <td class="td-summary">${escapeHTML(summaryOf(t))}</td>
+        <td>${escapeHTML(t.requester||'')}</td>
+        <td>${escapeHTML(t.department||'')}</td>
+        <td>${deletedAtStr}</td>
+        <td>${deletedBy}</td>
+        <td><button class="btn-secondary" style="width:auto;padding:6px 12px;font-size:12px;" onclick="restoreTicket('${t.id}')">↺ Restore</button></td>
+      </tr>`;
+  }).join('');
+}
+
+async function restoreTicket(id) {
+  if (!confirm(`Ibalik ang ticket ${id} sa listahan?`)) return;
+  const errEl = document.getElementById('deletedError');
+  try {
+    const res = await fetch(`${API_TICKETS}/restore.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ id })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.textContent = data.error || 'Hindi na-restore ang ticket.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+  } catch (e) {
+    errEl.textContent = 'Hindi na-restore ang ticket. Subukan ulit.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  errEl.classList.add('hidden');
+  await loadDeletedTickets();
+  await loadTickets();
 }
 
 </script>
