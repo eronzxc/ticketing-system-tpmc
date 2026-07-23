@@ -15,8 +15,10 @@
 // separate untracked file (e.g. mail_secrets.php, add it to .gitignore)
 // and require_once it here instead.
 
+require_once __DIR__ . '/mail_secrets.php';
+
 define('MAIL_HOST', 'smtp.gmail.com');
 define('MAIL_PORT', 587);
-define('MAIL_USERNAME', 'your.tpmc.itdesk@gmail.com'); // <-- palitan ng sender Gmail address
-define('MAIL_PASSWORD', 'xxxxxxxxxxxxxxxx');            // <-- palitan ng 16-char App Password (walang space)
 define('MAIL_FROM_NAME', 'TPMC IT Concern Desk');
+
+require_once __DIR__ . '/../PHPMailer/src/PHPMailer.php';

@@ -17,6 +17,7 @@ function sendMail(string $toEmail, string $toName, string $subject, string $body
     $mail = new PHPMailer(true);
     try {
         $mail->isSMTP();
+        $mail->CharSet = 'UTF-8';
         $mail->Host       = MAIL_HOST;
         $mail->SMTPAuth   = true;
         $mail->Username   = MAIL_USERNAME;
