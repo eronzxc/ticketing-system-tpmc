@@ -12,6 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $input = json_decode(file_get_contents('php://input'), true) ?? [];
 $commentId = $input['comment_id'] ?? '';
 $text = trim($input['text'] ?? '');
+$attachments = $input['attachments'] ?? [];
 
 if ($commentId === '' || $text === '') {
     http_response_code(400);
@@ -37,11 +38,18 @@ if ($comment['author_id'] === null || (int)$comment['author_id'] !== (int)$user[
     die(json_encode(['error' => 'Only the person who wrote this reply can edit it.']));
 }
 
-$stmt = $pdo->prepare('UPDATE ticket_comments SET message = ?, edited_at = NOW() WHERE id = ?');
-$stmt->execute([$text, $commentId]);
+$attachmentsJson = !empty($attachments) ? json_encode($attachments) : null;
 
-$stmt = $pdo->prepare('SELECT id, author, author_id AS authorId, message AS text, created_at AS createdAt, edited_at AS editedAt FROM ticket_comments WHERE ticket_id = ? ORDER BY created_at ASC');
+$stmt = $pdo->prepare('UPDATE ticket_comments SET message = ?, attachments_json = ?, edited_at = NOW() WHERE id = ?');
+$stmt->execute([$text, $attachmentsJson, $commentId]);
+
+$stmt = $pdo->prepare('SELECT id, author, author_id AS authorId, message AS text, attachments_json, created_at AS createdAt, edited_at AS editedAt FROM ticket_comments WHERE ticket_id = ? ORDER BY created_at ASC');
 $stmt->execute([$comment['ticket_id']]);
 $comments = $stmt->fetchAll();
+foreach ($comments as &$c) {
+    $c['attachments'] = $c['attachments_json'] ? json_decode($c['attachments_json'], true) : [];
+    unset($c['attachments_json']);
+}
+unset($c);
 
 echo json_encode(['comments' => $comments]);

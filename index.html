@@ -979,9 +979,13 @@ const API_TICKETS = "/ticketing-system-tpmc/tickets";
 
 let tickets = [];
 let currentUser = null;
-let selectedFiles = []; // [{ name, type, dataUrl }]
+let selectedFiles = []; // [{ name, type, dataUrl }] — for the initial concern submission
 const MAX_FILE_MB = 2;
 const MAX_FILES = 5;
+
+let replySelectedFiles = []; // new attachments being added to a fresh reply
+let editReplyFiles = []; // new attachments being added while editing an existing reply
+let editReplyExistingAttachments = []; // attachments already on the reply being edited, kept unless removed
 
 function isIT() {
   return !!(currentUser && currentUser.department === 'IT Department');
@@ -1354,13 +1358,170 @@ document.addEventListener('click', (e) => {
 
 let editingCommentId = null;
 
+function renderAttachmentsHTML(attachments) {
+  if (!Array.isArray(attachments) || !attachments.length) return '';
+  const items = attachments.map(a => {
+    if (a.type && a.type.startsWith('image/')) {
+      return `<img src="${a.dataUrl}" alt="${escapeHTML(a.name)}" onclick="window.open('${a.dataUrl.replace(/'/g,"\\'")}', '_blank')">`;
+    }
+    return `<a class="file-link" href="${a.dataUrl}" download="${escapeHTML(a.name)}">📎 ${escapeHTML(a.name)}</a>`;
+  }).join('');
+  return `<div class="ticket-attachment">${items}</div>`;
+}
+
+function renderKeptAttachmentsHTML(list, commentId) {
+  if (!Array.isArray(list) || !list.length) return '';
+  return `<div class="file-preview-list">` + list.map((a, i) => {
+    const isImage = a.type && a.type.startsWith('image/');
+    const thumb = isImage
+      ? `<img src="${a.dataUrl}" alt="preview">`
+      : `<div class="file-icon">${(a.name.split('.').pop() || 'FILE').slice(0,4).toUpperCase()}</div>`;
+    return `<div class="file-preview-item">${thumb}<span class="fp-name">${escapeHTML(a.name)}</span><button type="button" class="fp-remove" data-action="remove-kept-attachment" data-comment-id="${commentId}" data-index="${i}">Remove</button></div>`;
+  }).join('') + `</div>`;
+}
+
+function readFilesAsAttachments(files, onDone, errEl) {
+  const tooBig = files.find(f => f.size > MAX_FILE_MB * 1024 * 1024);
+  if (tooBig) {
+    if (errEl) { errEl.textContent = `"${tooBig.name}" is too big. Max ${MAX_FILE_MB}MB per file.`; errEl.classList.remove('hidden'); }
+    return;
+  }
+  if (errEl) errEl.classList.add('hidden');
+  let loaded = 0;
+  const results = [];
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      results.push({ name: file.name, type: file.type, dataUrl: reader.result });
+      loaded++;
+      if (loaded === files.length) onDone(results);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function handleReplyFileSelect() {
+  const input = document.getElementById('f_reply_attachment');
+  const files = Array.from(input.files || []);
+  const errEl = document.getElementById('replyError');
+  if (!files.length) return;
+  if (replySelectedFiles.length + files.length > MAX_FILES) {
+    if (errEl) { errEl.textContent = `Max ${MAX_FILES} files per reply.`; errEl.classList.remove('hidden'); }
+    input.value = '';
+    return;
+  }
+  readFilesAsAttachments(files, (results) => {
+    replySelectedFiles.push(...results);
+    input.value = '';
+    renderReplyFilePreview();
+  }, errEl);
+}
+
+function renderReplyFilePreview() {
+  const preview = document.getElementById('replyFilePreview');
+  const dropText = document.getElementById('replyFileDropText');
+  if (!preview || !dropText) return;
+  if (!replySelectedFiles.length) {
+    preview.classList.add('hidden');
+    preview.innerHTML = '';
+    dropText.textContent = 'Click to attach photos/files (max 2MB each)';
+    return;
+  }
+  dropText.textContent = replySelectedFiles.length < MAX_FILES ? 'Add another photo/file' : `Max ${MAX_FILES} files reached`;
+  preview.innerHTML = replySelectedFiles.map((f, i) => {
+    const isImage = f.type.startsWith('image/');
+    const thumb = isImage
+      ? `<img src="${f.dataUrl}" alt="preview">`
+      : `<div class="file-icon">${(f.name.split('.').pop() || 'FILE').slice(0,4).toUpperCase()}</div>`;
+    return `<div class="file-preview-item">${thumb}<span class="fp-name">${escapeHTML(f.name)}</span><button type="button" class="fp-remove" data-action="remove-reply-file" data-index="${i}">Remove</button></div>`;
+  }).join('') + `<div class="attach-count">${replySelectedFiles.length}/${MAX_FILES} file(s) attached</div>`;
+  preview.classList.remove('hidden');
+}
+
+function removeReplyFile(index) {
+  replySelectedFiles.splice(index, 1);
+  const input = document.getElementById('f_reply_attachment');
+  if (input) input.value = '';
+  renderReplyFilePreview();
+}
+
+function handleEditReplyFileSelect(commentId) {
+  const input = document.getElementById('f_editReply_attachment_' + commentId);
+  const files = Array.from(input.files || []);
+  const errEl = document.getElementById('editReplyError_' + commentId);
+  if (!files.length) return;
+  const totalCount = editReplyExistingAttachments.length + editReplyFiles.length + files.length;
+  if (totalCount > MAX_FILES) {
+    if (errEl) { errEl.textContent = `Max ${MAX_FILES} files per reply.`; errEl.classList.remove('hidden'); }
+    input.value = '';
+    return;
+  }
+  readFilesAsAttachments(files, (results) => {
+    editReplyFiles.push(...results);
+    input.value = '';
+    renderEditReplyFilePreview(commentId);
+  }, errEl);
+}
+
+function renderEditReplyFilePreview(commentId) {
+  const preview = document.getElementById('editReplyFilePreview_' + commentId);
+  const dropText = document.getElementById('editReplyFileDropText_' + commentId);
+  if (!preview || !dropText) return;
+  const totalCount = editReplyExistingAttachments.length + editReplyFiles.length;
+  if (!editReplyFiles.length) {
+    preview.classList.add('hidden');
+    preview.innerHTML = '';
+  } else {
+    preview.innerHTML = editReplyFiles.map((f, i) => {
+      const isImage = f.type.startsWith('image/');
+      const thumb = isImage
+        ? `<img src="${f.dataUrl}" alt="preview">`
+        : `<div class="file-icon">${(f.name.split('.').pop() || 'FILE').slice(0,4).toUpperCase()}</div>`;
+      return `<div class="file-preview-item">${thumb}<span class="fp-name">${escapeHTML(f.name)}</span><button type="button" class="fp-remove" data-action="remove-edit-reply-file" data-comment-id="${commentId}" data-index="${i}">Remove</button></div>`;
+    }).join('') + `<div class="attach-count">${totalCount}/${MAX_FILES} file(s) attached</div>`;
+    preview.classList.remove('hidden');
+  }
+  dropText.textContent = totalCount < MAX_FILES ? 'Add another photo/file' : `Max ${MAX_FILES} files reached`;
+}
+
+function removeEditReplyFile(commentId, index) {
+  editReplyFiles.splice(index, 1);
+  const input = document.getElementById('f_editReply_attachment_' + commentId);
+  if (input) input.value = '';
+  renderEditReplyFilePreview(commentId);
+}
+
+function removeKeptAttachment(commentId, index) {
+  editReplyExistingAttachments.splice(index, 1);
+  renderTicketDetail(selectedTicketId);
+}
+
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.getAttribute('data-action');
+  if (action === 'remove-reply-file') {
+    removeReplyFile(Number(btn.getAttribute('data-index')));
+  } else if (action === 'remove-edit-reply-file') {
+    removeEditReplyFile(btn.getAttribute('data-comment-id'), Number(btn.getAttribute('data-index')));
+  } else if (action === 'remove-kept-attachment') {
+    removeKeptAttachment(btn.getAttribute('data-comment-id'), Number(btn.getAttribute('data-index')));
+  }
+});
+
 function startCommentEdit(ticketId, commentId) {
   editingCommentId = commentId;
+  editReplyFiles = [];
+  const t = tickets.find(x => x.id === ticketId);
+  const c = t && Array.isArray(t.comments) ? t.comments.find(x => String(x.id) === String(commentId)) : null;
+  editReplyExistingAttachments = (c && Array.isArray(c.attachments)) ? [...c.attachments] : [];
   renderTicketDetail(ticketId);
 }
 
 function cancelCommentEdit(ticketId) {
   editingCommentId = null;
+  editReplyFiles = [];
+  editReplyExistingAttachments = [];
   renderTicketDetail(ticketId);
 }
 
@@ -1370,7 +1531,8 @@ function saveCommentEdit(ticketId, commentId) {
   const textEl = document.getElementById('editReplyText_' + commentId);
   const text = textEl ? textEl.value.trim() : '';
   if (!text) return;
-  pendingReplySave = { ticketId, commentId, text };
+  const attachments = [...editReplyExistingAttachments, ...editReplyFiles];
+  pendingReplySave = { ticketId, commentId, text, attachments };
   document.getElementById('replySaveConfirmError').classList.add('hidden');
   document.getElementById('replySaveConfirmView').classList.remove('hidden');
 }
@@ -1382,14 +1544,14 @@ function closeReplySaveConfirm() {
 
 async function confirmSaveCommentEdit() {
   if (!pendingReplySave) return;
-  const { ticketId, commentId, text } = pendingReplySave;
+  const { ticketId, commentId, text, attachments } = pendingReplySave;
   const errEl = document.getElementById('replySaveConfirmError');
   try {
     const res = await fetch(`${API_TICKETS}/comment_update.php`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ comment_id: commentId, text })
+      body: JSON.stringify({ comment_id: commentId, text, attachments })
     });
     const data = await res.json();
     if (!res.ok) {
@@ -1400,6 +1562,8 @@ async function confirmSaveCommentEdit() {
     const idx = tickets.findIndex(x => x.id === ticketId);
     if (idx !== -1) tickets[idx] = { ...tickets[idx], comments: data.comments || [] };
     editingCommentId = null;
+    editReplyFiles = [];
+    editReplyExistingAttachments = [];
     pendingReplySave = null;
     document.getElementById('replySaveConfirmView').classList.add('hidden');
     renderTicketDetail(ticketId);
@@ -1686,15 +1850,17 @@ async function postReply(id) {
   const textEl = document.getElementById('replyText_' + id);
   const text = textEl ? textEl.value.trim() : '';
   if (!text) return;
+  const attachments = [...replySelectedFiles];
   try {
     const res = await fetch(`${API_TICKETS}/reply.php`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ id, text })
+      body: JSON.stringify({ id, text, attachments })
     });
     if (!res.ok) return;
   } catch (e) { return; }
+  replySelectedFiles = [];
   await loadTickets();
   if (selectedTicketId === id) openTicketDetail(id);
 }
@@ -2003,6 +2169,9 @@ async function openTicketDetail(id) {
   selectedTicketId = id;
   detailOpen = true;
   editingCommentId = null;
+  replySelectedFiles = [];
+  editReplyFiles = [];
+  editReplyExistingAttachments = [];
   renderTickets();
   document.getElementById('ticketDetail').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   try {
@@ -2020,6 +2189,9 @@ function closeTicketDetail() {
   selectedTicketId = null;
   detailOpen = false;
   editingCommentId = null;
+  replySelectedFiles = [];
+  editReplyFiles = [];
+  editReplyExistingAttachments = [];
   const panel = document.getElementById('ticketDetail');
   panel.classList.add('hidden');
   panel.innerHTML = '';
@@ -2066,11 +2238,23 @@ function renderTicketDetail(id) {
             ? t.comments.map(c => {
                 const isMine = currentUser && c.authorId !== null && c.authorId !== undefined && Number(c.authorId) === Number(currentUser.id);
                 const editedTag = c.editedAt ? ' <span class="meta">(edited)</span>' : '';
+                const commentAttachmentsHTML = renderAttachmentsHTML(c.attachments);
                 if (String(editingCommentId) === String(c.id)) {
                   return `
                     <div class="detail-comment-meta">${escapeHTML(c.author||'IT')} · ${c.createdAt ? new Date(c.createdAt).toLocaleString('en-PH',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : ''}</div>
                     <div class="field">
                       <textarea id="editReplyText_${c.id}">${escapeHTML(c.text)}</textarea>
+                      ${editReplyExistingAttachments.length ? `
+                        <p class="meta" style="margin-top:8px;margin-bottom:4px;">Current attachments</p>
+                        ${renderKeptAttachmentsHTML(editReplyExistingAttachments, c.id)}
+                      ` : ``}
+                      <div style="margin-top:8px;">
+                        <label class="file-drop" id="editReplyFileDropLabel_${c.id}">
+                          <span id="editReplyFileDropText_${c.id}">Click to attach photos/files (max 2MB each)</span>
+                          <input type="file" id="f_editReply_attachment_${c.id}" accept="image/*,.pdf,.doc,.docx,.txt" multiple onchange="handleEditReplyFileSelect('${c.id}')">
+                        </label>
+                        <div id="editReplyFilePreview_${c.id}" class="file-preview-list hidden"></div>
+                      </div>
                       <div style="display:flex;gap:8px;margin-top:6px;">
                         <button type="button" class="primary" style="width:auto;" data-action="save-comment-edit" data-ticket-id="${t.id}" data-comment-id="${c.id}">Save</button>
                         <button type="button" class="btn-secondary" style="width:auto;" data-action="cancel-comment-edit" data-ticket-id="${t.id}">Cancel</button>
@@ -2085,6 +2269,7 @@ function renderTicketDetail(id) {
                     ${isMine ? `<button type="button" class="btn-secondary" style="width:auto;padding:1px 8px;font-size:12px;" data-action="start-comment-edit" data-ticket-id="${t.id}" data-comment-id="${c.id}">✎ Edit</button>` : ``}
                   </div>
                   <div class="detail-comment">${escapeHTML(c.text)}</div>
+                  ${commentAttachmentsHTML}
                 `;
               }).join('')
             : `<p class="meta">No replies yet.</p>`
@@ -2095,6 +2280,14 @@ function renderTicketDetail(id) {
           ? `<div class="field" style="margin-top:12px;">
               <label>Post a reply</label>
               <textarea id="replyText_${t.id}" placeholder="Type your reply..."></textarea>
+              <div style="margin-top:8px;">
+                <label class="file-drop" id="replyFileDropLabel">
+                  <span id="replyFileDropText">Click to attach photos/files (max 2MB each)</span>
+                  <input type="file" id="f_reply_attachment" accept="image/*,.pdf,.doc,.docx,.txt" multiple onchange="handleReplyFileSelect()">
+                </label>
+                <div id="replyFilePreview" class="file-preview-list hidden"></div>
+              </div>
+              <p class="err hidden" id="replyError" style="margin-top:6px;"></p>
               <button class="primary" style="width:auto;margin-top:8px;" onclick="postReply('${t.id}')">Send reply</button>
             </div>`
           : ``

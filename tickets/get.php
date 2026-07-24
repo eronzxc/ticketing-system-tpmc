@@ -23,8 +23,14 @@ $ticket['attachments'] = $ticket['attachments_json'] ? json_decode($ticket['atta
 unset($ticket['attachments_json']);
 $ticket['created_by'] = $ticket['created_by'] !== null ? (int)$ticket['created_by'] : null;
 
-$stmt = $pdo->prepare('SELECT id, author, author_id AS authorId, message AS text, created_at AS createdAt, edited_at AS editedAt FROM ticket_comments WHERE ticket_id = ? ORDER BY created_at ASC');
+$stmt = $pdo->prepare('SELECT id, author, author_id AS authorId, message AS text, attachments_json, created_at AS createdAt, edited_at AS editedAt FROM ticket_comments WHERE ticket_id = ? ORDER BY created_at ASC');
 $stmt->execute([$id]);
-$ticket['comments'] = $stmt->fetchAll();
+$comments = $stmt->fetchAll();
+foreach ($comments as &$c) {
+    $c['attachments'] = $c['attachments_json'] ? json_decode($c['attachments_json'], true) : [];
+    unset($c['attachments_json']);
+}
+unset($c);
+$ticket['comments'] = $comments;
 
 echo json_encode(['ticket' => $ticket]);
