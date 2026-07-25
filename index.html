@@ -1849,6 +1849,7 @@ async function postReply(id) {
   if (!t || !canReplyTo(t)) return;
   const textEl = document.getElementById('replyText_' + id);
   const text = textEl ? textEl.value.trim() : '';
+  const errEl = document.getElementById('replyError');
   if (!text) return;
   const attachments = [...replySelectedFiles];
   try {
@@ -1858,8 +1859,19 @@ async function postReply(id) {
       credentials: 'include',
       body: JSON.stringify({ id, text, attachments })
     });
-    if (!res.ok) return;
-  } catch (e) { return; }
+    let data = null;
+    try { data = await res.json(); } catch (parseErr) { /* non-JSON response, likely a raw PHP error */ }
+    if (!res.ok) {
+      if (errEl) {
+        errEl.textContent = (data && data.error) ? data.error : `Something went wrong (server responded with status ${res.status}). Check error.log if this persists.`;
+        errEl.classList.remove('hidden');
+      }
+      return;
+    }
+  } catch (e) {
+    if (errEl) { errEl.textContent = 'Could not connect to the server.'; errEl.classList.remove('hidden'); }
+    return;
+  }
   replySelectedFiles = [];
   await loadTickets();
   if (selectedTicketId === id) openTicketDetail(id);
