@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TPMC IT Concern Desk</title>
+<link rel="icon" type="image/png" href="assets/images/tpmc-logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -487,6 +488,7 @@
     .wrap { padding: 1rem 0.85rem 2rem; }
     h1 { font-size: 19px; }
     header { gap: 10px; }
+    header img { height: 36px; }
     header .btn-secondary, header button.primary { flex: 1 1 auto; }
     .stats { grid-template-columns: 1fr 1fr; }
     .stats .stat:last-child:nth-child(3) { grid-column: 1 / -1; }
@@ -515,13 +517,13 @@
 </head>
 <body>
 <div class="wrap">
-  <div style="background:#FAEEDA;color:#633806;font-size:12px;padding:8px 12px;border-radius:8px;margin-bottom:1rem;text-align:center;">
-    Data is currently saved in this browser's local storage only, not shared across devices yet.
-  </div>
   <header>
-    <div>
-      <h1>TPMC IT Concern Desk</h1>
-      <p class="sub">Submit and track IT concerns across the hospital</p>
+    <div style="display:flex;align-items:center;gap:14px;">
+      <img src="assets/images/tpmc-logo.png" alt="The Paramount Medical Center" style="height:48px;width:auto;">
+      <div>
+        <h1>TPMC IT Concern Desk</h1>
+        <p class="sub">Submit and track IT concerns across the hospital</p>
+      </div>
     </div>
     <div class="tabs">
       <div class="user-menu hidden" id="userMenu">
