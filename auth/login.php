@@ -25,6 +25,11 @@ if (!$row || !password_verify($password, $row['password_hash'])) {
     die(json_encode(['error' => 'Incorrect username or password.']));
 }
 
+if (isset($row['is_active']) && !$row['is_active']) {
+    http_response_code(403);
+    die(json_encode(['error' => 'This account has been disabled. Contact IT if you believe this is a mistake.']));
+}
+
 $user = [
     'id'         => $row['id'],
     'fullname'   => $row['fullname'],

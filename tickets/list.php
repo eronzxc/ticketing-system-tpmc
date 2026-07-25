@@ -1,17 +1,18 @@
 <?php
+ini_set('display_errors', '0');
+error_reporting(E_ALL);
+
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/session.php';
 
-requireLogin();
+requireIT();
 
-$stmt = $pdo->query('SELECT * FROM tickets WHERE deleted_at IS NULL ORDER BY created_at DESC');
-$rows = $stmt->fetchAll();
+$stmt = $pdo->query('SELECT id, fullname, username, department, is_active, created_at AS createdAt FROM users ORDER BY fullname ASC');
+$users = $stmt->fetchAll();
+foreach ($users as &$u) {
+    $u['is_active'] = (bool)$u['is_active'];
+    $u['id'] = (int)$u['id'];
+}
+unset($u);
 
-$tickets = array_map(function ($row) {
-    $row['attachments'] = $row['attachments_json'] ? json_decode($row['attachments_json'], true) : [];
-    unset($row['attachments_json']);
-    $row['created_by'] = $row['created_by'] !== null ? (int)$row['created_by'] : null;
-    return $row;
-}, $rows);
-
-echo json_encode(['tickets' => $tickets]);
+echo json_encode(['users' => $users]);

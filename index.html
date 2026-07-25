@@ -330,6 +330,12 @@
   .row-context-menu button:hover { background: var(--surface-2); }
   .row-context-menu button.danger { color: #c0392b; }
   .row-context-menu button.danger:hover { background: #fdecea; }
+  button.danger:not(.modal-footer button):not(.row-context-menu button) {
+    border: 1px solid #c0392b;
+    background: #fff;
+    color: #c0392b;
+  }
+  button.danger:not(.modal-footer button):not(.row-context-menu button):hover { background: #fdecea; }
   .row-context-menu hr { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
   .ticket-table td {
     padding: 10px 12px;
@@ -526,6 +532,7 @@
         </button>
         <div class="user-menu-panel hidden" id="userMenuPanel">
           <div class="user-menu-dept" id="userMenuDept"></div>
+          <button class="user-menu-item hidden" id="manageUsersBtn" onclick="openUsersModal()">Manage users</button>
           <button class="user-menu-item" onclick="logout()">Logout</button>
         </div>
       </div>
@@ -816,6 +823,132 @@
     </div>
   </div>
 
+  <div id="usersView" class="modal-overlay hidden">
+    <div class="modal-card" style="max-width:900px;">
+      <div class="modal-header">
+        <h2>System users</h2>
+        <button class="ticket-detail-close" onclick="closeUsersModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="sub" style="margin-bottom:12px;">Manage accounts that can access this system. Disable an account to block sign-in while keeping their ticket/reply history intact.</p>
+        <div class="ticket-table-wrap" style="margin-bottom:0;">
+          <table class="ticket-table" style="min-width:0;">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Username</th>
+                <th>Department</th>
+                <th>Status</th>
+                <th>Joined</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody"></tbody>
+          </table>
+        </div>
+        <p class="err hidden" id="usersError" style="margin-top:10px;"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeUsersModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="editUserView" class="modal-overlay hidden" style="z-index:1100;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Edit user</h2>
+        <button class="ticket-detail-close" onclick="closeEditUserModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label>Full name</label>
+          <input id="editUser_fullname">
+        </div>
+        <div class="field">
+          <label>Department / Unit</label>
+          <select id="editUser_department">
+            <option>Accounting</option>
+            <option>Admin</option>
+            <option>Admitting</option>
+            <option>Audiometry</option>
+            <option>Audit</option>
+            <option>Billing</option>
+            <option>Biomedical</option>
+            <option>Cashier</option>
+            <option>CSR</option>
+            <option>Dietary</option>
+            <option>Emergency Room</option>
+            <option>Engineering</option>
+            <option>Eye Center</option>
+            <option>Finance</option>
+            <option>Heart Station</option>
+            <option>Hemodialysis</option>
+            <option>HMO</option>
+            <option>Human Resources</option>
+            <option>ICU</option>
+            <option>Industrial</option>
+            <option>IT Department</option>
+            <option>Laboratory</option>
+            <option>Medical Records</option>
+            <option>NICU</option>
+            <option>Outpatient Department</option>
+            <option>Pharmacy</option>
+            <option>PhilHealth</option>
+            <option>PhilHealth Yakap</option>
+            <option>Physical Rehab</option>
+            <option>Pulmonology</option>
+            <option>Purchasing</option>
+            <option>Radiology</option>
+            <option>Station 3A</option>
+            <option>Station 3B</option>
+            <option>Station 3C</option>
+          </select>
+        </div>
+        <p class="err hidden" id="editUserError" style="margin-top:8px;"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeEditUserModal()">Cancel</button>
+        <button class="primary" style="width:auto;" onclick="saveEditUser()">Save changes</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toggleUserView" class="modal-overlay hidden" style="z-index:1100;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="toggleUserTitle">Update account</h2>
+        <button class="ticket-detail-close" onclick="closeToggleUserModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="sub" id="toggleUserMsg"></p>
+        <p class="err hidden" id="toggleUserError" style="margin-top:8px;"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeToggleUserModal()">Cancel</button>
+        <button class="primary" id="toggleUserConfirmBtn" style="width:auto;" onclick="confirmToggleUser()">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="deleteUserView" class="modal-overlay hidden" style="z-index:1100;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Delete user</h2>
+        <button class="ticket-detail-close" onclick="closeDeleteUserModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="sub" id="deleteUserMsg"></p>
+        <p class="sub" style="margin-top:8px;color:#b23b3b;">This permanently removes the account and cannot be undone. If this account has created tickets or replies, deletion will be blocked — disable the account instead in that case.</p>
+        <p class="err hidden" id="deleteUserError" style="margin-top:8px;"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeDeleteUserModal()">Cancel</button>
+        <button class="danger" style="width:auto;" onclick="confirmDeleteUser()">Yes, delete this account</button>
+      </div>
+    </div>
+  </div>
+
   <div id="adminView">
     <div id="authGate" class="pin-box" style="max-width:380px;text-align:left;">
       <div id="loginForm">
@@ -976,6 +1109,7 @@
 // Auth and tickets both use MySQL/PHP
 const API_AUTH = "/ticketing-system-tpmc/auth";
 const API_TICKETS = "/ticketing-system-tpmc/tickets";
+const API_USERS = "/ticketing-system-tpmc/users";
 
 let tickets = [];
 let currentUser = null;
@@ -1257,6 +1391,7 @@ function enterDashboard(user) {
   document.getElementById('userMenu').classList.remove('hidden');
   document.getElementById('tabSubmitBtn').classList.remove('hidden');
   document.getElementById('deletedBtn').classList.toggle('hidden', !isIT());
+  document.getElementById('manageUsersBtn').classList.toggle('hidden', !isIT());
   loadTickets();
 }
 
@@ -2499,6 +2634,215 @@ async function purgeTicket(id) {
   }
   errEl.classList.add('hidden');
   await loadDeletedTickets();
+}
+
+// ===== System Users management (IT only) =====
+
+let systemUsers = [];
+let pendingToggleUser = null; // { id, fullname, nextActive }
+let pendingDeleteUser = null; // { id, fullname }
+
+async function openUsersModal() {
+  if (!isIT()) return;
+  document.getElementById('usersError').classList.add('hidden');
+  document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="6" class="center-msg">Loading...</td></tr>`;
+  document.getElementById('usersView').classList.remove('hidden');
+  await loadUsers();
+}
+
+function closeUsersModal() {
+  document.getElementById('usersView').classList.add('hidden');
+}
+
+async function loadUsers() {
+  const errEl = document.getElementById('usersError');
+  const body = document.getElementById('usersTableBody');
+  try {
+    const res = await fetch(`${API_USERS}/list.php`, { credentials: 'include' });
+    const data = await res.json();
+    if (!res.ok) {
+      body.innerHTML = '';
+      errEl.textContent = data.error || 'Failed to load users.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+    errEl.classList.add('hidden');
+    systemUsers = data.users || [];
+    renderUsersTable();
+  } catch (e) {
+    body.innerHTML = '';
+    errEl.textContent = 'Failed to load users. Please try again.';
+    errEl.classList.remove('hidden');
+  }
+}
+
+function renderUsersTable() {
+  const body = document.getElementById('usersTableBody');
+  if (!systemUsers.length) {
+    body.innerHTML = `<tr><td colspan="6" class="center-msg">No users found.</td></tr>`;
+    return;
+  }
+  body.innerHTML = systemUsers.map(u => {
+    const isSelf = currentUser && Number(u.id) === Number(currentUser.id);
+    const joined = u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+    const statusBadge = u.is_active
+      ? `<span class="row-badge s-Open">Active</span>`
+      : `<span class="row-badge" style="background:#eee;color:#777;">Disabled</span>`;
+    return `
+      <tr>
+        <td>${escapeHTML(u.fullname)}${isSelf ? ' <span class="meta">(you)</span>' : ''}</td>
+        <td>${escapeHTML(u.username)}</td>
+        <td>${escapeHTML(u.department)}</td>
+        <td>${statusBadge}</td>
+        <td>${joined}</td>
+        <td style="white-space:nowrap;">
+          <button class="btn-secondary" style="width:auto;padding:2px 8px;font-size:12px;" onclick="openEditUserModal(${u.id})">Edit</button>
+          ${!isSelf ? `<button class="btn-secondary" style="width:auto;padding:2px 8px;font-size:12px;margin-left:4px;" onclick="openToggleUserModal(${u.id})">${u.is_active ? 'Disable' : 'Enable'}</button>` : ``}
+          ${!isSelf ? `<button class="danger" style="width:auto;padding:2px 8px;font-size:12px;margin-left:4px;" onclick="openDeleteUserModal(${u.id})">Delete</button>` : ``}
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function openEditUserModal(userId) {
+  const u = systemUsers.find(x => Number(x.id) === Number(userId));
+  if (!u) return;
+  document.getElementById('editUser_fullname').value = u.fullname;
+  document.getElementById('editUser_department').value = u.department;
+  document.getElementById('editUserError').classList.add('hidden');
+  document.getElementById('editUserView').dataset.userId = u.id;
+  document.getElementById('editUserView').classList.remove('hidden');
+}
+
+function closeEditUserModal() {
+  document.getElementById('editUserView').classList.add('hidden');
+}
+
+async function saveEditUser() {
+  const userId = document.getElementById('editUserView').dataset.userId;
+  const fullname = document.getElementById('editUser_fullname').value.trim();
+  const department = document.getElementById('editUser_department').value;
+  const errEl = document.getElementById('editUserError');
+  if (!fullname || !department) {
+    errEl.textContent = 'Full name and department are required.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  try {
+    const res = await fetch(`${API_USERS}/update.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ user_id: Number(userId), fullname, department })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.textContent = data.error || 'Failed to update user.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+  } catch (e) {
+    errEl.textContent = 'Could not connect to the server.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  errEl.classList.add('hidden');
+  closeEditUserModal();
+  await loadUsers();
+  // If the edited account is the currently logged-in user, refresh their header display too.
+  if (currentUser && Number(userId) === Number(currentUser.id)) {
+    currentUser.fullname = fullname;
+    currentUser.department = department;
+    document.getElementById('userMenuAvatar').textContent = initials(fullname);
+    document.getElementById('userMenuName').textContent = fullname;
+    document.getElementById('userMenuDept').textContent = department;
+  }
+}
+
+function openToggleUserModal(userId) {
+  const u = systemUsers.find(x => Number(x.id) === Number(userId));
+  if (!u) return;
+  const nextActive = !u.is_active;
+  pendingToggleUser = { id: u.id, fullname: u.fullname, nextActive };
+  document.getElementById('toggleUserTitle').textContent = nextActive ? 'Enable account' : 'Disable account';
+  document.getElementById('toggleUserMsg').textContent = nextActive
+    ? `Re-enable ${u.fullname}'s account? They will be able to log in again.`
+    : `Disable ${u.fullname}'s account? They will no longer be able to log in, but their existing tickets and replies stay intact.`;
+  document.getElementById('toggleUserConfirmBtn').textContent = nextActive ? 'Yes, enable' : 'Yes, disable';
+  document.getElementById('toggleUserError').classList.add('hidden');
+  document.getElementById('toggleUserView').classList.remove('hidden');
+}
+
+function closeToggleUserModal() {
+  pendingToggleUser = null;
+  document.getElementById('toggleUserView').classList.add('hidden');
+}
+
+async function confirmToggleUser() {
+  if (!pendingToggleUser) return;
+  const { id, nextActive } = pendingToggleUser;
+  const errEl = document.getElementById('toggleUserError');
+  try {
+    const res = await fetch(`${API_USERS}/toggle_active.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ user_id: id, active: nextActive })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.textContent = data.error || 'Failed to update account status.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+  } catch (e) {
+    errEl.textContent = 'Could not connect to the server.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  closeToggleUserModal();
+  await loadUsers();
+}
+
+function openDeleteUserModal(userId) {
+  const u = systemUsers.find(x => Number(x.id) === Number(userId));
+  if (!u) return;
+  pendingDeleteUser = { id: u.id, fullname: u.fullname };
+  document.getElementById('deleteUserMsg').textContent = `Delete ${u.fullname}'s account (${u.username})?`;
+  document.getElementById('deleteUserError').classList.add('hidden');
+  document.getElementById('deleteUserView').classList.remove('hidden');
+}
+
+function closeDeleteUserModal() {
+  pendingDeleteUser = null;
+  document.getElementById('deleteUserView').classList.add('hidden');
+}
+
+async function confirmDeleteUser() {
+  if (!pendingDeleteUser) return;
+  const { id } = pendingDeleteUser;
+  const errEl = document.getElementById('deleteUserError');
+  try {
+    const res = await fetch(`${API_USERS}/delete.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ user_id: id })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.textContent = data.error || 'Failed to delete user.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+  } catch (e) {
+    errEl.textContent = 'Could not connect to the server.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  closeDeleteUserModal();
+  await loadUsers();
 }
 
 
