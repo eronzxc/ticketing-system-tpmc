@@ -16,9 +16,9 @@
     --ink-secondary: #5F5E5A;
     --ink-muted: #888780;
     --border: #D3D1C7;
-    --teal: #0F6E56;
-    --teal-dark: #085041;
-    --teal-tint: #E1F5EE;
+    --teal: #1B4F91;
+    --teal-dark: #123763;
+    --teal-tint: #E6EEF8;
     --radius: 10px;
   }
   * { box-sizing: border-box; }
@@ -28,7 +28,61 @@
     background: var(--bg);
     color: var(--ink);
   }
-  .wrap { max-width: 1600px; margin: 0 auto; padding: 1.5rem 2.5rem 3rem; }
+  body { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: 64px;
+    flex: 0 0 64px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px 0;
+    gap: 8px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+  }
+  .sidebar-logo { width: 34px; height: 34px; object-fit: contain; margin-bottom: 12px; }
+  .sidebar-nav { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+  .sidebar-item {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink-secondary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    position: relative;
+  }
+  .sidebar-item:hover { background: var(--surface-2); color: var(--ink); }
+  .sidebar-item.active { background: var(--teal-tint); color: var(--teal-dark); }
+  .sidebar-item svg { width: 20px; height: 20px; }
+  .sidebar-bottom { margin-top: auto; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .sidebar-item[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    left: 52px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--ink);
+    color: #fff;
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+    z-index: 50;
+  }
+  @media (max-width: 600px) {
+    .sidebar { width: 52px; flex: 0 0 52px; padding: 10px 0; }
+    .sidebar-item { width: 34px; height: 34px; }
+    .sidebar-logo { width: 26px; height: 26px; }
+  }
+  .wrap { max-width: 1600px; margin: 0 auto; padding: 1.5rem 2.5rem 3rem; flex: 1; min-width: 0; }
   header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 12px; }
   h1 { font-size: 22px; font-weight: 600; margin: 0; }
   .sub { font-size: 13px; color: var(--ink-secondary); margin: 4px 0 0; }
@@ -194,7 +248,7 @@
   .p-Urgent { background: #FCEBEB; color: #501313; }
   .s-Open { background: #E6F1FB; color: #042C53; }
   .s-In.progress, .s-In-progress { background: #FAEEDA; color: #412402; }
-  .s-Resolved { background: #E1F5EE; color: #04342C; }
+  .s-Resolved { background: #EAF3DE; color: #173404; }
   .meta { font-size: 12px; color: var(--ink-muted); margin: 2px 0; }
   .desc { font-size: 13px; color: var(--ink-secondary); margin: 6px 0; }
   .status-actions { display: flex; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
@@ -516,29 +570,41 @@
 </style>
 </head>
 <body>
+<nav class="sidebar">
+  <img src="assets/images/tpmc-logo.png" alt="TPMC" class="sidebar-logo">
+  <div class="sidebar-nav">
+    <button class="sidebar-item active" title="Dashboard" aria-label="Dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+    </button>
+    <button class="sidebar-item hidden" id="sidebarDeletedBtn" title="Recently deleted" aria-label="Recently deleted" onclick="openDeletedModal()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+    </button>
+    <button class="sidebar-item hidden" id="sidebarUsersBtn" title="Manage users" aria-label="Manage users" onclick="openUsersModal()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    </button>
+  </div>
+  <div class="sidebar-bottom">
+    <div class="user-menu hidden" id="userMenu">
+      <button class="sidebar-item" id="userMenuTrigger" title="Account" aria-label="Account" onclick="toggleUserMenu()">
+        <span class="user-menu-avatar" id="userMenuAvatar"></span>
+      </button>
+      <div class="user-menu-panel hidden" id="userMenuPanel" style="left:52px; bottom:0; top:auto;">
+        <div class="user-menu-name" id="userMenuName" style="font-weight:500; padding:4px 12px;"></div>
+        <div class="user-menu-dept" id="userMenuDept"></div>
+        <button class="user-menu-item" onclick="logout()">Logout</button>
+      </div>
+    </div>
+  </div>
+</nav>
 <div class="wrap">
   <header>
     <div style="display:flex;align-items:center;gap:14px;">
-      <img src="assets/images/tpmc-logo.png" alt="The Paramount Medical Center" style="height:48px;width:auto;">
       <div>
         <h1>TPMC IT Concern Desk</h1>
         <p class="sub">Submit and track IT concerns across the hospital</p>
       </div>
     </div>
     <div class="tabs">
-      <div class="user-menu hidden" id="userMenu">
-        <button class="user-menu-trigger" id="userMenuTrigger" onclick="toggleUserMenu()">
-          <span class="user-menu-avatar" id="userMenuAvatar"></span>
-          <span class="user-menu-name" id="userMenuName"></span>
-          <span class="user-menu-chevron"></span>
-        </button>
-        <div class="user-menu-panel hidden" id="userMenuPanel">
-          <div class="user-menu-dept" id="userMenuDept"></div>
-          <button class="user-menu-item hidden" id="manageUsersBtn" onclick="openUsersModal()">Manage users</button>
-          <button class="user-menu-item" onclick="logout()">Logout</button>
-        </div>
-      </div>
-      <button class="btn-secondary hidden" id="deletedBtn" style="width:auto;" onclick="openDeletedModal()">Recently deleted</button>
       <button class="tab-btn active hidden" id="tabSubmitBtn" onclick="openSubmitModal()">+ Submit a concern</button>
     </div>
   </header>
@@ -1392,8 +1458,8 @@ function enterDashboard(user) {
   document.getElementById('userMenuDept').textContent = user.department;
   document.getElementById('userMenu').classList.remove('hidden');
   document.getElementById('tabSubmitBtn').classList.remove('hidden');
-  document.getElementById('deletedBtn').classList.toggle('hidden', !isIT());
-  document.getElementById('manageUsersBtn').classList.toggle('hidden', !isIT());
+  document.getElementById('sidebarDeletedBtn').classList.toggle('hidden', !isIT());
+  document.getElementById('sidebarUsersBtn').classList.toggle('hidden', !isIT());
   loadTickets();
 }
 
@@ -1424,7 +1490,7 @@ async function logout() {
   document.getElementById('login_password').value = '';
   document.getElementById('userMenu').classList.add('hidden');
   document.getElementById('tabSubmitBtn').classList.add('hidden');
-  document.getElementById('deletedBtn').classList.add('hidden');
+  document.getElementById('sidebarDeletedBtn').classList.add('hidden');
   document.getElementById('userMenu').classList.remove('open');
   document.getElementById('userMenuPanel').classList.add('hidden');
 }
