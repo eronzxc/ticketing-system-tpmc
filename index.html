@@ -28,7 +28,21 @@
     background: var(--bg);
     color: var(--ink);
   }
-  body { display: flex; min-height: 100vh; }
+  body { display: flex; flex-direction: column; min-height: 100vh; }
+  .topbar {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex: 0 0 auto;
+  }
+  .topbar-brand { display: flex; align-items: center; gap: 14px; }
+  .topbar-brand img { height: 44px; width: auto; }
+  .body-row { display: flex; flex: 1; min-height: 0; }
   .sidebar {
     width: 64px;
     flex: 0 0 64px;
@@ -39,12 +53,9 @@
     align-items: center;
     padding: 16px 0;
     gap: 8px;
-    position: sticky;
-    top: 0;
-    height: 100vh;
   }
-  .sidebar-logo { width: 34px; height: 34px; object-fit: contain; margin-bottom: 12px; }
   .sidebar-nav { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+  .topbar { margin-bottom: 0; }
   .sidebar-item {
     width: 40px;
     height: 40px;
@@ -80,7 +91,8 @@
   @media (max-width: 600px) {
     .sidebar { width: 52px; flex: 0 0 52px; padding: 10px 0; }
     .sidebar-item { width: 34px; height: 34px; }
-    .sidebar-logo { width: 26px; height: 26px; }
+    .topbar-brand img { height: 32px; }
+    .topbar { padding: 10px 14px; }
   }
   .wrap { max-width: 1600px; margin: 0 auto; padding: 1.5rem 2.5rem 3rem; flex: 1; min-width: 0; }
   header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 12px; }
@@ -570,8 +582,20 @@
 </style>
 </head>
 <body>
+<header class="topbar">
+  <div class="topbar-brand">
+    <img src="assets/images/tpmc-logo.png" alt="The Paramount Medical Center">
+    <div>
+      <h1>TPMC IT Concern Desk</h1>
+      <p class="sub">Submit and track IT concerns across the hospital</p>
+    </div>
+  </div>
+  <div class="tabs">
+    <button class="tab-btn active hidden" id="tabSubmitBtn" onclick="openSubmitModal()">+ Submit a concern</button>
+  </div>
+</header>
+<div class="body-row">
 <nav class="sidebar">
-  <img src="assets/images/tpmc-logo.png" alt="TPMC" class="sidebar-logo">
   <div class="sidebar-nav">
     <button class="sidebar-item active" title="Dashboard" aria-label="Dashboard">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
@@ -597,17 +621,6 @@
   </div>
 </nav>
 <div class="wrap">
-  <header>
-    <div style="display:flex;align-items:center;gap:14px;">
-      <div>
-        <h1>TPMC IT Concern Desk</h1>
-        <p class="sub">Submit and track IT concerns across the hospital</p>
-      </div>
-    </div>
-    <div class="tabs">
-      <button class="tab-btn active hidden" id="tabSubmitBtn" onclick="openSubmitModal()">+ Submit a concern</button>
-    </div>
-  </header>
 
   <div id="submitView" class="modal-overlay hidden">
     <div class="modal-card">
@@ -1171,6 +1184,7 @@
       <div id="ticketDetail" class="ticket-detail hidden"></div>
     </div>
   </div>
+</div>
 </div>
 
 <script>
