@@ -1395,12 +1395,12 @@
               <th>Requester</th>
               <th>Department</th>
               <th>Priority</th>
-              <th>Date Requested</th>
-              <th>Due date</th>
-              <th>Status</th>
               <th>Category</th>
+              <th>Status</th>
+              <th>Date Requested</th>
               <th>Date Resolved</th>
               <th>Resolved by</th>
+              <th>Due date</th>
             </tr>
           </thead>
           <tbody id="ticketTableBody"></tbody>
@@ -2700,10 +2700,10 @@ function renderTickets() {
   } else {
     tbody.innerHTML = filtered.map(t => {
       const statusClass = 's-' + t.status.replace(' ', '-');
-      const requestedStr = t.createdAt ? new Date(t.createdAt).toLocaleDateString('en-PH',{month:'numeric',day:'numeric',year:'2-digit'}) : '';
-      const resolvedStr = t.resolvedAt ? new Date(t.resolvedAt).toLocaleDateString('en-PH',{month:'numeric',day:'numeric',year:'2-digit'}) : '—';
+      const requestedStr = t.createdAt ? new Date(t.createdAt).toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'}) : '';
+      const resolvedStr = t.resolvedAt ? new Date(t.resolvedAt).toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'}) : '—';
       const isOverdue = t.dueDate && t.status !== 'Resolved' && new Date(t.dueDate).getTime() < Date.now();
-      const dueStr = t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-PH',{month:'numeric',day:'numeric',year:'2-digit'}) : '';
+      const dueStr = t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'}) : '';
       return `
         <tr class="${t.id===selectedTicketId?'row-selected':''}" onclick="selectTicketRow('${t.id}')" oncontextmenu="showRowContextMenu(event, '${t.id}'); return false;" ontouchstart="handleRowTouchStart(event, '${t.id}')" ontouchmove="handleRowTouchMove(event)" ontouchend="handleRowTouchEnd(event)" ontouchcancel="clearTimeout(touchTimer)">
           <td class="td-id">${t.id}</td>
@@ -2711,12 +2711,12 @@ function renderTickets() {
           <td>${escapeHTML(t.requester||'')}</td>
           <td>${escapeHTML(t.department||'')}</td>
           <td><span class="row-badge p-${t.priority}">${t.priority}</span></td>
-          <td>${requestedStr}</td>
-          <td${isOverdue ? ' style="color:#c0392b;font-weight:600;"' : ''}>${dueStr}${isOverdue ? ' ⚠' : ''}</td>
-          <td><span class="row-badge ${statusClass}">${t.status}</span></td>
           <td>${escapeHTML(t.category||'')}</td>
+          <td><span class="row-badge ${statusClass}">${t.status}</span></td>
+          <td>${requestedStr}</td>
           <td>${resolvedStr}</td>
           <td>${escapeHTML(t.resolvedBy || '—')}</td>
+          <td${isOverdue ? ' style="color:#c0392b;font-weight:600;"' : ''}>${dueStr}${isOverdue ? ' ⚠' : ''}</td>
         </tr>`;
     }).join('');
   }
