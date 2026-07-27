@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/session.php';
+require_once __DIR__ . '/../config/notify.php';
 
 requireIT();
 
@@ -32,7 +33,7 @@ if (!in_array($status, ['Open', 'In progress', 'Resolved'], true)) {
     die(json_encode(['error' => 'Invalid status.']));
 }
 
-$stmt = $pdo->prepare('SELECT status, resolved_at, resolved_by FROM tickets WHERE id = ?');
+$stmt = $pdo->prepare('SELECT status, resolved_at, resolved_by, created_by FROM tickets WHERE id = ?');
 $stmt->execute([$id]);
 $existing = $stmt->fetch();
 if (!$existing) {
@@ -64,6 +65,16 @@ $stmt = $pdo->prepare(
     'UPDATE tickets SET status = ?, due_date = ?, resolved_at = ?, resolved_by = ?, remarks = ?, updated_at = NOW() WHERE id = ?'
 );
 $stmt->execute([$status, $dueDateVal, $resolvedAtVal, $resolvedByVal, $remarksVal, $id]);
+
+// Only notify on an actual status change, and only the requester who
+// owns the ticket (not every member of their department).
+if ($existing['status'] !== $status && $existing['created_by'] !== null) {
+    if ($status === 'In progress') {
+        notifyUser($pdo, (int)$existing['created_by'], $id, 'in_progress', "Ticket $id is now in progress.");
+    } elseif ($status === 'Resolved') {
+        notifyUser($pdo, (int)$existing['created_by'], $id, 'resolved', "Ticket $id has been resolved.");
+    }
+}
 
 $stmt = $pdo->prepare('SELECT * FROM tickets WHERE id = ?');
 $stmt->execute([$id]);

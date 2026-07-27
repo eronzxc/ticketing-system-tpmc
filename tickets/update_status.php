@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/session.php';
+require_once __DIR__ . '/../config/notify.php';
 
 requireIT();
 
@@ -19,6 +20,10 @@ if (!in_array($status, ['Open', 'In progress', 'Resolved'], true)) {
 }
 
 $user = currentUser();
+
+$stmt = $pdo->prepare('SELECT status, created_by FROM tickets WHERE id = ?');
+$stmt->execute([$id]);
+$existing = $stmt->fetch();
 
 if ($status === 'Resolved') {
     $stmt = $pdo->prepare(
@@ -41,5 +46,13 @@ if (!$ticket) {
 }
 $ticket['attachments'] = $ticket['attachments_json'] ? json_decode($ticket['attachments_json'], true) : [];
 unset($ticket['attachments_json']);
+
+if ($existing && $existing['status'] !== $status && $existing['created_by'] !== null) {
+    if ($status === 'In progress') {
+        notifyUser($pdo, (int)$existing['created_by'], $id, 'in_progress', "Ticket $id is now in progress.");
+    } elseif ($status === 'Resolved') {
+        notifyUser($pdo, (int)$existing['created_by'], $id, 'resolved', "Ticket $id has been resolved.");
+    }
+}
 
 echo json_encode(['ticket' => $ticket]);

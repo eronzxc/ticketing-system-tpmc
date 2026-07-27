@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/session.php';
+require_once __DIR__ . '/../config/notify.php';
 
 requireLogin();
 
@@ -66,5 +67,7 @@ $stmt = $pdo->prepare('SELECT * FROM tickets WHERE id = ?');
 $stmt->execute([$ticketId]);
 $ticket = $stmt->fetch();
 $ticket['attachments'] = $attachments;
+
+notifyIT($pdo, $ticketId, 'new_ticket', "New ticket $ticketId submitted by $requester.");
 
 echo json_encode(['ticket' => $ticket]);
