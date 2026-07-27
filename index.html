@@ -621,6 +621,8 @@
       <div class="user-menu-panel hidden" id="userMenuPanel" style="left:52px; bottom:0; top:auto;">
         <div class="user-menu-name" id="userMenuName" style="font-weight:500; padding:4px 12px;"></div>
         <div class="user-menu-dept" id="userMenuDept"></div>
+        <button class="user-menu-item" onclick="openChangePasswordModal()">Change password</button>
+        <button class="user-menu-item" onclick="openSwitchAccountModal()">Switch account</button>
         <button class="user-menu-item" onclick="logout()">Logout</button>
       </div>
     </div>
@@ -839,6 +841,60 @@
         <button class="btn-secondary" onclick="closeForgotPassword()">Cancel</button>
         <button class="primary" id="fpStep1Btn" style="width:auto;" onclick="requestResetCode()">Send reset code</button>
         <button class="primary hidden" id="fpStep2Btn" style="width:auto;" onclick="submitPasswordReset()">Reset password</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="switchAccountView" class="modal-overlay hidden" style="z-index:1100;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Switch account</h2>
+        <button class="ticket-detail-close" onclick="closeSwitchAccountModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="sub" style="margin-bottom:12px;">Sign in with a different account. Your current session will be replaced.</p>
+        <div class="field">
+          <label>Username</label>
+          <input id="switch_username" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="switch_password" placeholder="••••••••">
+        </div>
+        <p class="err hidden" id="switchAccountError"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeSwitchAccountModal()">Cancel</button>
+        <button class="primary" id="switchAccountBtn" style="width:auto;" onclick="submitSwitchAccount()">Switch account</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="changePasswordView" class="modal-overlay hidden" style="z-index:1100;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Change password</h2>
+        <button class="ticket-detail-close" onclick="closeChangePasswordModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label>Current password</label>
+          <input type="password" id="cp_current" placeholder="••••••••">
+        </div>
+        <div class="field">
+          <label>New password</label>
+          <input type="password" id="cp_new" placeholder="••••••••">
+        </div>
+        <div class="field">
+          <label>Confirm new password</label>
+          <input type="password" id="cp_new2" placeholder="••••••••">
+        </div>
+        <p class="err hidden" id="changePasswordError"></p>
+        <p class="sub hidden" id="changePasswordSuccess" style="color: var(--teal-dark); margin-top:8px;"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeChangePasswordModal()">Close</button>
+        <button class="primary" id="changePasswordBtn" style="width:auto;" onclick="submitChangePassword()">Change password</button>
       </div>
     </div>
   </div>
@@ -1513,6 +1569,125 @@ async function logout() {
   document.getElementById('sidebarDeletedBtn').classList.add('hidden');
   document.getElementById('userMenu').classList.remove('open');
   document.getElementById('userMenuPanel').classList.add('hidden');
+}
+
+function openChangePasswordModal() {
+  document.getElementById('cp_current').value = '';
+  document.getElementById('cp_new').value = '';
+  document.getElementById('cp_new2').value = '';
+  document.getElementById('changePasswordError').classList.add('hidden');
+  document.getElementById('changePasswordSuccess').classList.add('hidden');
+  document.getElementById('changePasswordView').classList.remove('hidden');
+  document.getElementById('userMenu').classList.remove('open');
+  document.getElementById('userMenuPanel').classList.add('hidden');
+}
+
+function closeChangePasswordModal() {
+  document.getElementById('changePasswordView').classList.add('hidden');
+}
+
+async function submitChangePassword() {
+  const currentPassword = document.getElementById('cp_current').value;
+  const newPassword = document.getElementById('cp_new').value;
+  const newPassword2 = document.getElementById('cp_new2').value;
+  const errEl = document.getElementById('changePasswordError');
+  const successEl = document.getElementById('changePasswordSuccess');
+  const btn = document.getElementById('changePasswordBtn');
+
+  errEl.classList.add('hidden');
+  successEl.classList.add('hidden');
+
+  if (!currentPassword || !newPassword) {
+    errEl.textContent = 'Please fill in all fields.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  if (newPassword.length < 6) {
+    errEl.textContent = 'New password must be at least 6 characters.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  if (newPassword !== newPassword2) {
+    errEl.textContent = 'New passwords do not match.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${API_AUTH}/change_password.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword, confirm_new_password: newPassword2 })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.textContent = data.error || 'Failed to change password.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+    document.getElementById('cp_current').value = '';
+    document.getElementById('cp_new').value = '';
+    document.getElementById('cp_new2').value = '';
+    successEl.textContent = 'Password changed successfully.';
+    successEl.classList.remove('hidden');
+  } catch (e) {
+    errEl.textContent = 'Could not reach the server. Make sure Apache/MySQL is running in XAMPP.';
+    errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function openSwitchAccountModal() {
+  document.getElementById('switch_username').value = '';
+  document.getElementById('switch_password').value = '';
+  document.getElementById('switchAccountError').classList.add('hidden');
+  document.getElementById('switchAccountView').classList.remove('hidden');
+  document.getElementById('userMenu').classList.remove('open');
+  document.getElementById('userMenuPanel').classList.add('hidden');
+}
+
+function closeSwitchAccountModal() {
+  document.getElementById('switchAccountView').classList.add('hidden');
+}
+
+async function submitSwitchAccount() {
+  const username = document.getElementById('switch_username').value.trim().toLowerCase();
+  const password = document.getElementById('switch_password').value;
+  const errEl = document.getElementById('switchAccountError');
+  const btn = document.getElementById('switchAccountBtn');
+
+  if (!username || !password) {
+    errEl.textContent = 'Username and password are required.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  errEl.classList.add('hidden');
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${API_AUTH}/login.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.textContent = data.error || 'Incorrect username or password.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+    closeSwitchAccountModal();
+    enterDashboard(data.user);
+  } catch (e) {
+    errEl.textContent = 'Could not reach the server. Make sure Apache/MySQL is running in XAMPP.';
+    errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 async function tryRestoreSession() {
