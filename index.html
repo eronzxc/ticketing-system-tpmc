@@ -484,6 +484,12 @@
     border-bottom: 1px solid var(--border);
     white-space: nowrap;
   }
+  .ticket-table thead th.sortable-th {
+    cursor: pointer;
+    user-select: none;
+  }
+  .ticket-table thead th.sortable-th:hover { color: var(--ink); }
+  .sort-arrow { display: inline-block; margin-left: 4px; font-size: 10px; }
   .ticket-table tbody tr {
     cursor: pointer;
     border-bottom: 1px solid var(--border);
@@ -1390,13 +1396,13 @@
         <table class="ticket-table">
           <thead>
             <tr>
-              <th>ID</th>
+              <th id="th-id" class="sortable-th" onclick="toggleSort('id')">ID<span class="sort-arrow" id="arrow-id"></span></th>
               <th>Summary</th>
               <th>Requester</th>
               <th>Department</th>
-              <th>Priority</th>
+              <th id="th-priority" class="sortable-th" onclick="toggleSort('priority')">Priority<span class="sort-arrow" id="arrow-priority"></span></th>
               <th>Date Requested</th>
-              <th>Due date</th>
+              <th id="th-dueDate" class="sortable-th" onclick="toggleSort('dueDate')">Due date<span class="sort-arrow" id="arrow-dueDate"></span></th>
               <th>Status</th>
               <th>Category</th>
               <th>Date Resolved</th>
@@ -2613,6 +2619,58 @@ function populateDepartmentFilter() {
 
 let lastFilteredTickets = [];
 
+let sortColumn = null;
+let sortDirection = 'asc';
+
+const PRIORITY_RANK = { Urgent: 4, High: 3, Medium: 2, Low: 1 };
+
+function getTicketIdNum(id) {
+  const m = String(id).match(/(\d+)\s*$/);
+  return m ? parseInt(m[1], 10) : 0;
+}
+
+function toggleSort(column) {
+  if (sortColumn === column) {
+    sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortColumn = column;
+    sortDirection = 'asc';
+  }
+  updateSortArrows();
+  renderTickets();
+}
+
+function updateSortArrows() {
+  ['id', 'priority', 'dueDate'].forEach(col => {
+    const el = document.getElementById('arrow-' + col);
+    if (!el) return;
+    el.textContent = sortColumn === col ? (sortDirection === 'asc' ? ' \u25B2' : ' \u25BC') : '';
+  });
+}
+
+function applySort(list) {
+  if (!sortColumn) return list;
+  const dir = sortDirection === 'asc' ? 1 : -1;
+  const sorted = [...list];
+  sorted.sort((a, b) => {
+    let av, bv;
+    if (sortColumn === 'id') {
+      av = getTicketIdNum(a.id);
+      bv = getTicketIdNum(b.id);
+    } else if (sortColumn === 'priority') {
+      av = PRIORITY_RANK[a.priority] || 0;
+      bv = PRIORITY_RANK[b.priority] || 0;
+    } else if (sortColumn === 'dueDate') {
+      av = a.dueDate ? new Date(a.dueDate).getTime() : -Infinity;
+      bv = b.dueDate ? new Date(b.dueDate).getTime() : -Infinity;
+    }
+    if (av < bv) return -1 * dir;
+    if (av > bv) return 1 * dir;
+    return 0;
+  });
+  return sorted;
+}
+
 function csvEscape(val) {
   const s = (val === null || val === undefined) ? '' : String(val);
   if (/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
@@ -2692,13 +2750,14 @@ function renderTickets() {
     `<div class="stat stat-${s.replace(/\s+/g,'')}"><div class="num">${counts[s]||0}</div><div class="lbl">${s}</div></div>`
   ).join('');
 
-  lastFilteredTickets = filtered;
+  const sorted = applySort(filtered);
+  lastFilteredTickets = sorted;
 
   const tbody = document.getElementById('ticketTableBody');
-  if (filtered.length === 0) {
+  if (sorted.length === 0) {
     tbody.innerHTML = `<tr><td colspan="11" class="center-msg" style="white-space:normal;">No matching tickets.</td></tr>`;
   } else {
-    tbody.innerHTML = filtered.map(t => {
+    tbody.innerHTML = sorted.map(t => {
       const statusClass = 's-' + t.status.replace(' ', '-');
       const requestedStr = t.createdAt ? new Date(t.createdAt).toLocaleDateString('en-PH',{month:'numeric',day:'numeric',year:'2-digit'}) : '';
       const resolvedStr = t.resolvedAt ? new Date(t.resolvedAt).toLocaleDateString('en-PH',{month:'numeric',day:'numeric',year:'2-digit'}) : '—';
