@@ -14,22 +14,23 @@ $input = json_decode(file_get_contents('php://input'), true) ?? [];
 
 $user = currentUser();
 
-// Requester and department are prefilled from the logged-in account on
-// the frontend, but stay editable there (e.g. submitting on behalf of
-// someone else) — so we take the submitted values here. created_by is
-// still always the logged-in account, so ownership/reply permissions
-// stay tied to the real account regardless of what's typed in the form.
-$requester   = trim($input['requester'] ?? '') ?: $user['fullname'];
-$department  = trim($input['department'] ?? '') ?: $user['department'];
+// Accounts are now one shared login per department, so "who is
+// requesting" is simply the department of whoever is logged in — no
+// longer a typed field on the form. This can't be spoofed from the
+// client since it's read from the session, not the request body.
+$requester   = $user['department'];
+$department  = $user['department'];
 $createdBy   = $user['id'];
 $category    = trim($input['category'] ?? '');
 $priority    = trim($input['priority'] ?? '');
 $description = trim($input['description'] ?? '');
 $attachments = $input['attachments'] ?? [];
 
-if ($requester === '' || $department === '') {
+if ($requester === '' || $requester === null) {
+    // Should not normally happen (every account has a department), but
+    // guard against a malformed/legacy account with no department set.
     http_response_code(400);
-    die(json_encode(['error' => 'Please fill in all required fields.']));
+    die(json_encode(['error' => 'Your account has no department set. Please contact IT.']));
 }
 if (!in_array($priority, ['Low', 'Medium', 'High', 'Urgent'], true)) {
     $priority = 'Medium';

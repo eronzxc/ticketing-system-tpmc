@@ -13,7 +13,12 @@ if ($id === '') {
     die(json_encode(['error' => 'Ticket ID is required.']));
 }
 
-$stmt = $pdo->prepare('SELECT * FROM tickets WHERE id = ?');
+$stmt = $pdo->prepare(
+    'SELECT t.*, u.fullname AS assigned_to_name
+     FROM tickets t
+     LEFT JOIN users u ON u.id = t.assigned_to
+     WHERE t.id = ?'
+);
 $stmt->execute([$id]);
 $ticket = $stmt->fetch();
 
@@ -25,6 +30,7 @@ if (!$ticket || $ticket['deleted_at'] !== null) {
 $ticket['attachments'] = $ticket['attachments_json'] ? json_decode($ticket['attachments_json'], true) : [];
 unset($ticket['attachments_json']);
 $ticket['created_by'] = $ticket['created_by'] !== null ? (int)$ticket['created_by'] : null;
+$ticket['assigned_to'] = $ticket['assigned_to'] !== null ? (int)$ticket['assigned_to'] : null;
 
 $stmt = $pdo->prepare('SELECT id, author, author_id AS authorId, message AS text, attachments_json, created_at AS createdAt, edited_at AS editedAt FROM ticket_comments WHERE ticket_id = ? ORDER BY created_at ASC');
 $stmt->execute([$id]);

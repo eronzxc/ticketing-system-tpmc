@@ -897,7 +897,7 @@
           <div class="row">
             <div class="field">
               <label>Status</label>
-              <select id="e_status">
+              <select id="e_status" onchange="toggleResolvedByField()">
                 <option>Open</option>
                 <option>In progress</option>
                 <option>Resolved</option>
@@ -913,6 +913,10 @@
               <label>Date resolved</label>
               <input type="datetime-local" id="e_resolved_at">
             </div>
+          </div>
+          <div class="field hidden" id="e_resolved_by_field">
+            <label>Resolved by</label>
+            <select id="e_resolved_by"></select>
           </div>
           <div class="field">
             <label>Remarks</label>
@@ -1596,6 +1600,7 @@ function enterDashboard(user) {
   document.getElementById('notifWrap').classList.remove('hidden');
   loadTickets();
   loadNotifications();
+  if (isIT()) loadITStaffList();
   if (notifPollInterval) clearInterval(notifPollInterval);
   notifPollInterval = setInterval(loadNotifications, 20000);
 }
@@ -1786,6 +1791,8 @@ function normalizeTicket(t) {
     resolvedAt: t.resolved_at || t.resolvedAt || null,
     resolvedBy: t.resolved_by || t.resolvedBy || null,
     remarks: t.remarks || '',
+    assignedTo: (t.assigned_to !== undefined ? t.assigned_to : (t.assignedTo !== undefined ? t.assignedTo : null)),
+    assignedToName: t.assigned_to_name || t.assignedToName || null,
     attachments: t.attachments || [],
     comments: t.comments || []
   };
@@ -1804,6 +1811,17 @@ async function loadTickets() {
 
 let notifPollInterval = null;
 let notifications = [];
+let itStaffList = [];
+
+async function loadITStaffList() {
+  try {
+    const res = await fetch(`${API_USERS}/list.php`, { credentials: 'include' });
+    const data = await res.json();
+    itStaffList = (data.users || []).filter(u => u.department === 'IT Department' && u.is_active);
+  } catch (e) {
+    itStaffList = [];
+  }
+}
 
 async function loadNotifications() {
   try {
@@ -2169,8 +2187,21 @@ function confirmEditTicket() {
   document.getElementById('e_resolved_at').value = toDatetimeLocalValue(t.resolvedAt);
   document.getElementById('e_remarks').value = t.remarks || '';
 
+  const resolvedBySelect = document.getElementById('e_resolved_by');
+  resolvedBySelect.innerHTML = itStaffList.map(u =>
+    `<option value="${escapeHTML(u.fullname)}">${escapeHTML(u.fullname)}${currentUser && Number(u.id)===Number(currentUser.id)?' (You)':''}</option>`
+  ).join('');
+  // Default to whoever already resolved it, or the current IT user if unset.
+  resolvedBySelect.value = t.resolvedBy || (currentUser ? currentUser.fullname : '');
+  toggleResolvedByField();
+
   document.getElementById('editConfirmBtn').textContent = 'Save changes';
   document.getElementById('editConfirmBtn').setAttribute('onclick', 'saveTicketEdit()');
+}
+
+function toggleResolvedByField() {
+  const isResolved = document.getElementById('e_status').value === 'Resolved';
+  document.getElementById('e_resolved_by_field').classList.toggle('hidden', !isResolved);
 }
 
 async function saveTicketEdit() {
@@ -2180,6 +2211,7 @@ async function saveTicketEdit() {
   const status = document.getElementById('e_status').value;
   const dueDate = document.getElementById('e_due_date').value;
   const resolvedAt = document.getElementById('e_resolved_at').value;
+  const resolvedBy = status === 'Resolved' ? document.getElementById('e_resolved_by').value : '';
   const remarks = document.getElementById('e_remarks').value.trim();
 
   try {
@@ -2187,7 +2219,7 @@ async function saveTicketEdit() {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: editingTicketId, status, due_date: dueDate, resolved_at: resolvedAt, remarks })
+      body: JSON.stringify({ id: editingTicketId, status, due_date: dueDate, resolved_at: resolvedAt, resolved_by: resolvedBy, remarks })
     });
     const data = await res.json();
     if (!res.ok) {
@@ -2792,6 +2824,28 @@ async function deleteTicket(id) {
   renderTickets();
 }
 
+async function assignTicket(id, assignedTo) {
+  try {
+    const res = await fetch(`${API_TICKETS}/assign.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ id, assigned_to: assignedTo || null })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || 'Failed to update assignment.');
+      return;
+    }
+    const full = normalizeTicket(data.ticket);
+    tickets = tickets.map(t => t.id === id ? { ...t, ...full } : t);
+    renderTicketDetail(id);
+    renderTickets();
+  } catch (e) {
+    alert('Could not reach the server. Make sure Apache/MySQL is running in XAMPP.');
+  }
+}
+
 async function openTicketDetail(id) {
   selectedTicketId = id;
   openTicketId = id;
@@ -2929,6 +2983,22 @@ function renderTicketDetail(id) {
         </label>
         <div class="side-value"><span class="badge s-${t.status.replace(' ','-')}">${t.status}</span></div>
         ${!isIT() ? `<p class="meta" style="margin-top:6px;">Only IT can change the status.</p>` : ``}
+      </div>
+      <div class="side-field">
+        <label>Assigned to</label>
+        ${
+          isIT()
+            ? `<select id="assignSelect_${t.id}" onchange="assignTicket('${t.id}', this.value)" style="width:100%;margin-top:4px;">
+                <option value="">— Unassigned —</option>
+                ${itStaffList.map(u => `<option value="${u.id}" ${Number(t.assignedTo)===Number(u.id)?'selected':''}>${escapeHTML(u.fullname)}${currentUser && Number(u.id)===Number(currentUser.id)?' (You)':''}</option>`).join('')}
+              </select>
+              ${
+                currentUser && Number(t.assignedTo) !== Number(currentUser.id)
+                  ? `<button type="button" class="btn-secondary" style="width:auto;margin-top:6px;padding:2px 10px;font-size:12px;" onclick="assignTicket('${t.id}', ${currentUser.id})">Claim this ticket</button>`
+                  : ``
+              }`
+            : `<div class="side-value">${t.assignedToName ? escapeHTML(t.assignedToName) : '— Unassigned —'}</div>`
+        }
       </div>
       <div class="side-field">
         <label>Priority</label>

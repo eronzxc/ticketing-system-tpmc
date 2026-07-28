@@ -16,7 +16,7 @@ if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
     die(json_encode(['error' => 'Please enter a valid email address.']));
 }
 
-$stmt = $pdo->prepare('SELECT id, fullname, email FROM users WHERE email = ?');
+$stmt = $pdo->prepare('SELECT id, fullname, email, department FROM users WHERE email = ?');
 $stmt->execute([$email]);
 $user = $stmt->fetch();
 
@@ -30,6 +30,17 @@ $genericResponse = [
 if (!$user) {
     echo json_encode($genericResponse);
     exit;
+}
+
+// Accounts are now shared per department (e.g. "Pharmacy"), and only the
+// IT Department account has a real, actively-monitored inbox. Self-service
+// reset only makes sense for that one account — every other department
+// account's password should be reset by IT directly (via System users),
+// so we point them there instead of pretending to email an inbox nobody
+// checks.
+if ($user['department'] !== 'IT Department') {
+    http_response_code(400);
+    die(json_encode(['error' => 'This account\'s password can only be reset by IT. Please contact the IT Department directly.']));
 }
 
 $code = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);

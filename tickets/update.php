@@ -19,13 +19,15 @@ if ($id === '') {
 }
 
 // Only these fields can be edited here: Status, Due date, Date resolved,
-// and Remarks. We don't touch the original request (department, category,
-// priority, description) so the requester's submission is never
-// overwritten. Status changes go through this endpoint too (behind a
-// confirmation dialog) so it can't be changed by an accidental click.
+// Resolved by, and Remarks. We don't touch the original request
+// (department, category, priority, description) so the requester's
+// submission is never overwritten. Status changes go through this
+// endpoint too (behind a confirmation dialog) so it can't be changed by
+// an accidental click.
 $status     = trim($input['status'] ?? '');
 $dueDate    = trim($input['due_date'] ?? '');
 $resolvedAt = trim($input['resolved_at'] ?? '');
+$resolvedByInput = trim($input['resolved_by'] ?? '');
 $remarks    = trim($input['remarks'] ?? '');
 
 if (!in_array($status, ['Open', 'In progress', 'Resolved'], true)) {
@@ -46,16 +48,23 @@ $dueDateVal = $dueDate !== '' ? date('Y-m-d H:i:s', strtotime($dueDate)) : null;
 $remarksVal = $remarks !== '' ? $remarks : null;
 
 if ($status === 'Resolved') {
-    if ($existing['status'] !== 'Resolved') {
-        // Just got resolved now: record who resolved it and when.
-        $resolvedAtVal = $resolvedAt !== '' ? date('Y-m-d H:i:s', strtotime($resolvedAt)) : date('Y-m-d H:i:s');
-        $resolvedByVal = $user['fullname'];
+    // "Resolved by" is picked from a dropdown of IT staff (like an Excel
+    // dropdown) instead of always auto-filling the logged-in account —
+    // this lets one IT member log a resolution on a teammate's behalf.
+    // Still validated against real, active IT accounts so it can't be
+    // set to an arbitrary name.
+    if ($resolvedByInput !== '') {
+        $stmt = $pdo->prepare("SELECT fullname FROM users WHERE fullname = ? AND department = 'IT Department' AND is_active = 1");
+        $stmt->execute([$resolvedByInput]);
+        $validName = $stmt->fetchColumn();
+        $resolvedByVal = $validName !== false ? $validName : $user['fullname'];
     } else {
-        // Was already resolved — keep the existing resolved_by, unless the
-        // Date resolved was intentionally changed in the form.
-        $resolvedAtVal = $resolvedAt !== '' ? date('Y-m-d H:i:s', strtotime($resolvedAt)) : $existing['resolved_at'];
-        $resolvedByVal = $existing['resolved_by'];
+        $resolvedByVal = $existing['resolved_by'] ?? $user['fullname'];
     }
+
+    $resolvedAtVal = $resolvedAt !== ''
+        ? date('Y-m-d H:i:s', strtotime($resolvedAt))
+        : ($existing['status'] === 'Resolved' ? $existing['resolved_at'] : date('Y-m-d H:i:s'));
 } else {
     $resolvedAtVal = null;
     $resolvedByVal = null;
@@ -76,12 +85,18 @@ if ($existing['status'] !== $status && $existing['created_by'] !== null) {
     }
 }
 
-$stmt = $pdo->prepare('SELECT * FROM tickets WHERE id = ?');
+$stmt = $pdo->prepare(
+    'SELECT t.*, u.fullname AS assigned_to_name
+     FROM tickets t
+     LEFT JOIN users u ON u.id = t.assigned_to
+     WHERE t.id = ?'
+);
 $stmt->execute([$id]);
 $ticket = $stmt->fetch();
 $ticket['attachments'] = $ticket['attachments_json'] ? json_decode($ticket['attachments_json'], true) : [];
 unset($ticket['attachments_json']);
 $ticket['created_by'] = $ticket['created_by'] !== null ? (int)$ticket['created_by'] : null;
+$ticket['assigned_to'] = $ticket['assigned_to'] !== null ? (int)$ticket['assigned_to'] : null;
 
 $stmt = $pdo->prepare('SELECT id, author, author_id AS authorId, message AS text, created_at AS createdAt, edited_at AS editedAt FROM ticket_comments WHERE ticket_id = ? ORDER BY created_at ASC');
 $stmt->execute([$id]);
