@@ -915,8 +915,8 @@
             </div>
           </div>
           <div class="field hidden" id="e_resolved_by_field">
-            <label>Resolved by</label>
-            <select id="e_resolved_by"></select>
+            <label style="display:flex;justify-content:space-between;align-items:center;">Resolved by <a href="#" onclick="openManageStaffModal(); return false;" style="font-weight:400;font-size:12px;">Manage IT staff</a></label>
+            <select id="e_resolved_by"><option value="">Select who resolved it...</option></select>
           </div>
           <div class="field">
             <label>Remarks</label>
@@ -1159,6 +1159,40 @@
     </div>
   </div>
 
+  <div id="manageStaffView" class="modal-overlay hidden" style="z-index:1100;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Manage IT staff</h2>
+        <button class="ticket-detail-close" onclick="closeManageStaffModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="sub" style="margin-bottom:12px;">These names show up in the "Resolved by" dropdown when closing a ticket. Deactivate a name instead of removing it if it's already used on past tickets.</p>
+        <div class="row" style="align-items:flex-start;">
+          <div class="field" style="margin-bottom:0;flex:1;">
+            <input id="staff_new_name" placeholder="Full name (e.g. Jonard F. Mujer)">
+          </div>
+          <button class="primary" style="width:auto;" onclick="addStaffName()">Add</button>
+        </div>
+        <p class="err hidden" id="staffError" style="margin-top:8px;"></p>
+        <div class="ticket-table-wrap" style="margin-bottom:0;margin-top:12px;">
+          <table class="ticket-table" style="min-width:0;">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="staffTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeManageStaffModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
   <div id="editUserView" class="modal-overlay hidden" style="z-index:1100;">
     <div class="modal-card">
       <div class="modal-header">
@@ -1370,6 +1404,7 @@ const API_AUTH = "/ticketing-system-tpmc/auth";
 const API_TICKETS = "/ticketing-system-tpmc/tickets";
 const API_NOTIFICATIONS = "/ticketing-system-tpmc/tickets/notifications.php";
 const API_USERS = "/ticketing-system-tpmc/users";
+const API_STAFF = "/ticketing-system-tpmc/staff";
 
 let tickets = [];
 let currentUser = null;
@@ -1600,7 +1635,7 @@ function enterDashboard(user) {
   document.getElementById('notifWrap').classList.remove('hidden');
   loadTickets();
   loadNotifications();
-  if (isIT()) loadITStaffList();
+  if (isIT()) { loadITStaffList(); loadITStaffNames(); }
   if (notifPollInterval) clearInterval(notifPollInterval);
   notifPollInterval = setInterval(loadNotifications, 20000);
 }
@@ -1820,6 +1855,23 @@ async function loadITStaffList() {
     itStaffList = (data.users || []).filter(u => u.department === 'IT Department' && u.is_active);
   } catch (e) {
     itStaffList = [];
+  }
+}
+
+// Separate from itStaffList above (which is login accounts, used for
+// "Assigned to"). itStaffNames is a plain, independently-managed list of
+// named technicians used only for "Resolved by", so IT can record who
+// specifically closed a ticket without that person needing their own
+// login account.
+let itStaffNames = [];
+
+async function loadITStaffNames() {
+  try {
+    const res = await fetch(`${API_STAFF}/list.php`, { credentials: 'include' });
+    const data = await res.json();
+    itStaffNames = data.staff || [];
+  } catch (e) {
+    itStaffNames = [];
   }
 }
 
@@ -2188,11 +2240,15 @@ function confirmEditTicket() {
   document.getElementById('e_remarks').value = t.remarks || '';
 
   const resolvedBySelect = document.getElementById('e_resolved_by');
-  resolvedBySelect.innerHTML = itStaffList.map(u =>
-    `<option value="${escapeHTML(u.fullname)}">${escapeHTML(u.fullname)}${currentUser && Number(u.id)===Number(currentUser.id)?' (You)':''}</option>`
-  ).join('');
-  // Default to whoever already resolved it, or the current IT user if unset.
-  resolvedBySelect.value = t.resolvedBy || (currentUser ? currentUser.fullname : '');
+  const activeStaffNames = itStaffNames.filter(s => s.isActive).map(s => s.fullName);
+  // Keep the ticket's already-saved name in the list even if that staff
+  // entry was later deactivated or renamed, so we don't silently blank
+  // out or lose existing data when reopening this ticket.
+  const optionNames = [...activeStaffNames];
+  if (t.resolvedBy && !optionNames.includes(t.resolvedBy)) optionNames.unshift(t.resolvedBy);
+  resolvedBySelect.innerHTML = '<option value="">Select who resolved it...</option>' +
+    optionNames.map(name => `<option value="${escapeHTML(name)}">${escapeHTML(name)}</option>`).join('');
+  resolvedBySelect.value = t.resolvedBy || '';
   toggleResolvedByField();
 
   document.getElementById('editConfirmBtn').textContent = 'Save changes';
@@ -3257,6 +3313,116 @@ function renderUsersTable() {
     `;
   }).join('');
 }
+
+function openManageStaffModal() {
+  if (!isIT()) return;
+  document.getElementById('staffError').classList.add('hidden');
+  document.getElementById('staff_new_name').value = '';
+  document.getElementById('manageStaffView').classList.remove('hidden');
+  renderStaffModalList();
+}
+
+function closeManageStaffModal() {
+  document.getElementById('manageStaffView').classList.add('hidden');
+  // Refresh the Resolved by dropdown in case names were added/changed
+  // while the edit modal was open behind this one.
+  loadITStaffNames().then(() => {
+    if (editingTicketId) {
+      const t = tickets.find(x => x.id === editingTicketId);
+      if (t) {
+        const resolvedBySelect = document.getElementById('e_resolved_by');
+        const current = resolvedBySelect.value;
+        const activeStaffNames = itStaffNames.filter(s => s.isActive).map(s => s.fullName);
+        const optionNames = [...activeStaffNames];
+        if (current && !optionNames.includes(current)) optionNames.unshift(current);
+        resolvedBySelect.innerHTML = '<option value="">Select who resolved it...</option>' +
+          optionNames.map(name => `<option value="${escapeHTML(name)}">${escapeHTML(name)}</option>`).join('');
+        resolvedBySelect.value = current;
+      }
+    }
+  });
+}
+
+function renderStaffModalList() {
+  const body = document.getElementById('staffTableBody');
+  if (!itStaffNames.length) {
+    body.innerHTML = `<tr><td colspan="3" class="center-msg">No staff names yet.</td></tr>`;
+    return;
+  }
+  const sorted = [...itStaffNames].sort((a, b) => a.fullName.localeCompare(b.fullName));
+  body.innerHTML = sorted.map(s => {
+    const statusBadge = s.isActive
+      ? `<span class="row-badge s-Open">Active</span>`
+      : `<span class="row-badge" style="background:#eee;color:#777;">Inactive</span>`;
+    return `
+      <tr>
+        <td>${escapeHTML(s.fullName)}</td>
+        <td>${statusBadge}</td>
+        <td style="white-space:nowrap;">
+          <button class="btn-secondary" style="width:auto;padding:2px 8px;font-size:12px;" onclick="toggleStaffActive(${s.id}, ${!s.isActive})">${s.isActive ? 'Deactivate' : 'Activate'}</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function addStaffName() {
+  const errEl = document.getElementById('staffError');
+  errEl.classList.add('hidden');
+  const nameEl = document.getElementById('staff_new_name');
+  const fullName = nameEl.value.trim();
+  if (!fullName) {
+    errEl.textContent = 'Please enter a name.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  try {
+    const res = await fetch(`${API_STAFF}/create.php`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ full_name: fullName })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.textContent = data.error || 'Failed to add name.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+    itStaffNames.push(data.staff);
+    nameEl.value = '';
+    renderStaffModalList();
+  } catch (e) {
+    errEl.textContent = 'Could not connect to the server.';
+    errEl.classList.remove('hidden');
+  }
+}
+
+async function toggleStaffActive(staffId, active) {
+  const errEl = document.getElementById('staffError');
+  errEl.classList.add('hidden');
+  try {
+    const res = await fetch(`${API_STAFF}/toggle_active.php`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ staff_id: staffId, active })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.textContent = data.error || 'Failed to update.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+    const s = itStaffNames.find(x => Number(x.id) === Number(staffId));
+    if (s) s.isActive = active;
+    renderStaffModalList();
+  } catch (e) {
+    errEl.textContent = 'Could not connect to the server.';
+    errEl.classList.remove('hidden');
+  }
+}
+
 
 function openEditUserModal(userId) {
   const u = systemUsers.find(x => Number(x.id) === Number(userId));
