@@ -1270,81 +1270,6 @@
         <p class="meta" style="margin-top:12px;text-align:center;">
           <a href="#" onclick="openForgotPassword();return false;">Forgot password?</a>
         </p>
-        <p class="meta" style="margin-top:4px;text-align:center;">No account yet? <a href="#" onclick="showRegister();return false;">Register here</a></p>
-      </div>
-      <div id="registerForm" class="hidden">
-        <p class="sub" style="text-align:center;margin-bottom:14px;">Create an IT staff account</p>
-        <div class="field">
-          <label>Full name</label>
-          <input id="reg_fullname" placeholder="Type your full name">
-        </div>
-        <div class="field">
-          <label>Username</label>
-          <input id="reg_username" placeholder="Type your username">
-        </div>
-        <div class="field">
-          <label>Email</label>
-          <input type="email" id="reg_email" placeholder="you@example.com">
-        </div>
-        <div class="field">
-          <label>Department / Unit</label>
-          <select id="reg_department">
-            <option value="">Select department...</option>
-            <option>Accounting</option>
-            <option>Admin</option>
-            <option>Admitting</option>
-            <option>Audiometry</option>
-            <option>Audit</option>
-            <option>Billing</option>
-            <option>Biomedical</option>
-            <option>Cashier</option>
-            <option>CSR</option>
-            <option>Dietary</option>
-            <option>Emergency Room</option>
-            <option>Engineering</option>
-            <option>Eye Center</option>
-            <option>Finance</option>
-            <option>Heart Station</option>
-            <option>Hemodialysis</option>
-            <option>HMO</option>
-            <option>Human Resources</option>
-            <option>ICU</option>
-            <option>Industrial</option>
-            <option>IT Department</option>
-            <option>Laboratory</option>
-            <option>Medical Records</option>
-            <option>NICU</option>
-            <option>Outpatient Department</option>
-            <option>Pharmacy</option>
-            <option>PhilHealth</option>
-            <option>PhilHealth Yakap</option>
-            <option>Physical Rehab</option>
-            <option>Pulmonology</option>
-            <option>Purchasing</option>
-            <option>Radiology</option>
-            <option>Station 3A</option>
-            <option>Station 3B</option>
-            <option>Station 3C</option>
-            <option value="Others">Others (please specify)</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Password</label>
-          <div class="password-field">
-            <input type="password" id="reg_password" placeholder="••••••••">
-            <button type="button" class="password-toggle" onclick="togglePasswordVisibility('reg_password', this)" aria-label="Show password"></button>
-          </div>
-        </div>
-        <div class="field">
-          <label>Confirm password</label>
-          <div class="password-field">
-            <input type="password" id="reg_password2" placeholder="••••••••">
-            <button type="button" class="password-toggle" onclick="togglePasswordVisibility('reg_password2', this)" aria-label="Show password"></button>
-          </div>
-        </div>
-        <p class="err hidden" id="registerError"></p>
-        <button class="primary" onclick="register()">Create account</button>
-        <p class="meta" style="margin-top:12px;text-align:center;">Already have an account? <a href="#" onclick="showLogin();return false;">Login here</a></p>
       </div>
     </div>
     <div id="dashboard" class="hidden">
@@ -1502,13 +1427,7 @@ function closeSubmitModal() {
 }
 
 function showLogin() {
-  document.getElementById('registerForm').classList.add('hidden');
   document.getElementById('loginForm').classList.remove('hidden');
-}
-
-function showRegister() {
-  document.getElementById('loginForm').classList.add('hidden');
-  document.getElementById('registerForm').classList.remove('hidden');
 }
 
 let resetEmail = null;
@@ -1623,57 +1542,6 @@ async function submitPasswordReset() {
     errEl.classList.remove('hidden');
   } finally {
     btn.disabled = false;
-  }
-}
-
-async function register() {
-  const fullname = document.getElementById('reg_fullname').value.trim();
-  const username = document.getElementById('reg_username').value.trim().toLowerCase();
-  const email = document.getElementById('reg_email').value.trim().toLowerCase();
-  const department = document.getElementById('reg_department').value;
-  const password = document.getElementById('reg_password').value;
-  const password2 = document.getElementById('reg_password2').value;
-  const errEl = document.getElementById('registerError');
-
-  if (!fullname || !username || !email || !department || !password) {
-    errEl.textContent = "Please fill in all fields.";
-    errEl.classList.remove('hidden');
-    return;
-  }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    errEl.textContent = "Please enter a valid email address.";
-    errEl.classList.remove('hidden');
-    return;
-  }
-  if (password.length < 6) {
-    errEl.textContent = "Password must be at least 6 characters.";
-    errEl.classList.remove('hidden');
-    return;
-  }
-  if (password !== password2) {
-    errEl.textContent = "Passwords do not match.";
-    errEl.classList.remove('hidden');
-    return;
-  }
-
-  try {
-    const res = await fetch(`${API_AUTH}/register.php`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ fullname, username, email, department, password, confirmPassword: password2 })
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      errEl.textContent = data.error || "Something went wrong. Please try again.";
-      errEl.classList.remove('hidden');
-      return;
-    }
-    errEl.classList.add('hidden');
-    enterDashboard(data.user);
-  } catch (e) {
-    errEl.textContent = "Could not reach the server. Make sure Apache/MySQL is running in XAMPP.";
-    errEl.classList.remove('hidden');
   }
 }
 
