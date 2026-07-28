@@ -743,13 +743,13 @@
 <div class="body-row">
 <nav class="sidebar hidden" id="appSidebar">
   <div class="sidebar-nav">
-    <button class="sidebar-item active" title="Dashboard" aria-label="Dashboard">
+    <button class="sidebar-item active" id="sidebarDashboardBtn" title="Dashboard" aria-label="Dashboard" onclick="showDashboardPage()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
     </button>
     <button class="sidebar-item hidden" id="sidebarDeletedBtn" title="Recently deleted" aria-label="Recently deleted" onclick="openDeletedModal()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
     </button>
-    <button class="sidebar-item hidden" id="sidebarUsersBtn" title="Manage users" aria-label="Manage users" onclick="openUsersModal()">
+    <button class="sidebar-item hidden" id="sidebarUsersBtn" title="Manage users" aria-label="Manage users" onclick="showUsersPage()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
     </button>
   </div>
@@ -787,42 +787,6 @@
             <label>Department / Unit</label>
             <select id="f_department" onchange="toggleOtherDept()">
               <option value="">Select department...</option>
-              <option>Accounting</option>
-              <option>Admin</option>
-              <option>Admitting</option>
-              <option>Audiometry</option>
-              <option>Audit</option>
-              <option>Billing</option>
-              <option>Biomedical</option>
-              <option>Cashier</option>
-              <option>CSR</option>
-              <option>Dietary</option>
-              <option>Emergency Room</option>
-              <option>Engineering</option>
-              <option>Eye Center</option>
-              <option>Finance</option>
-              <option>Heart Station</option>
-              <option>Hemodialysis</option>
-              <option>HMO</option>
-              <option>Human Resources</option>
-              <option>ICU</option>
-              <option>Industrial</option>
-              <option>IT Department</option>
-              <option>Laboratory</option>
-              <option>Medical Records</option>
-              <option>NICU</option>
-              <option>Outpatient Department</option>
-              <option>Pharmacy</option>
-              <option>PhilHealth</option>
-              <option>PhilHealth Yakap</option>
-              <option>Physical Rehab</option>
-              <option>Pulmonology</option>
-              <option>Purchasing</option>
-              <option>Radiology</option>
-              <option>Station 3A</option>
-              <option>Station 3B</option>
-              <option>Station 3C</option>
-              <option value="Others">Others (please specify)</option>
             </select>
             <input id="f_department_other" class="hidden" placeholder="Type department name" style="margin-top:8px;">
           </div>
@@ -1128,33 +1092,38 @@
     </div>
   </div>
 
-  <div id="usersView" class="modal-overlay hidden">
-    <div class="modal-card" style="max-width:900px;">
+  <div id="addUserView" class="modal-overlay hidden" style="z-index:1100;">
+    <div class="modal-card">
       <div class="modal-header">
-        <h2>System users</h2>
-        <button class="ticket-detail-close" onclick="closeUsersModal()">✕</button>
+        <h2>Add department account</h2>
+        <button class="ticket-detail-close" onclick="closeAddUserModal()">✕</button>
       </div>
       <div class="modal-body">
-        <p class="sub" style="margin-bottom:12px;">Manage accounts that can access this system. Disable an account to block sign-in while keeping their ticket/reply history intact.</p>
-        <div class="ticket-table-wrap" style="margin-bottom:0;">
-          <table class="ticket-table" style="min-width:0;">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Username</th>
-                <th>Department</th>
-                <th>Status</th>
-                <th>Joined</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="usersTableBody"></tbody>
-          </table>
+        <div class="field">
+          <label>Full name</label>
+          <input id="addUser_fullname" placeholder="e.g. Pharmacy Department">
         </div>
-        <p class="err hidden" id="usersError" style="margin-top:10px;"></p>
+        <div class="field">
+          <label>Username</label>
+          <input id="addUser_username" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <input id="addUser_email" type="email">
+        </div>
+        <div class="field">
+          <label>Department / Unit</label>
+          <select id="addUser_department"></select>
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="addUser_password" placeholder="At least 6 characters">
+        </div>
+        <p class="err hidden" id="addUserError" style="margin-top:8px;"></p>
       </div>
       <div class="modal-footer">
-        <button class="btn-secondary" onclick="closeUsersModal()">Close</button>
+        <button class="btn-secondary" onclick="closeAddUserModal()">Cancel</button>
+        <button class="primary" style="width:auto;" onclick="submitAddUser()">Add account</button>
       </div>
     </div>
   </div>
@@ -1206,43 +1175,7 @@
         </div>
         <div class="field">
           <label>Department / Unit</label>
-          <select id="editUser_department">
-            <option>Accounting</option>
-            <option>Admin</option>
-            <option>Admitting</option>
-            <option>Audiometry</option>
-            <option>Audit</option>
-            <option>Billing</option>
-            <option>Biomedical</option>
-            <option>Cashier</option>
-            <option>CSR</option>
-            <option>Dietary</option>
-            <option>Emergency Room</option>
-            <option>Engineering</option>
-            <option>Eye Center</option>
-            <option>Finance</option>
-            <option>Heart Station</option>
-            <option>Hemodialysis</option>
-            <option>HMO</option>
-            <option>Human Resources</option>
-            <option>ICU</option>
-            <option>Industrial</option>
-            <option>IT Department</option>
-            <option>Laboratory</option>
-            <option>Medical Records</option>
-            <option>NICU</option>
-            <option>Outpatient Department</option>
-            <option>Pharmacy</option>
-            <option>PhilHealth</option>
-            <option>PhilHealth Yakap</option>
-            <option>Physical Rehab</option>
-            <option>Pulmonology</option>
-            <option>Purchasing</option>
-            <option>Radiology</option>
-            <option>Station 3A</option>
-            <option>Station 3B</option>
-            <option>Station 3C</option>
-          </select>
+          <select id="editUser_department"></select>
         </div>
         <p class="err hidden" id="editUserError" style="margin-top:8px;"></p>
       </div>
@@ -1377,6 +1310,65 @@
       </div>
       <div id="ticketDetail" class="ticket-detail hidden"></div>
     </div>
+
+    <div id="usersPageView" class="hidden">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:0;">
+        <div>
+          <h2 style="margin:0 0 4px;font-size:20px;">System users</h2>
+          <p class="sub" style="margin:0;">Manage accounts, delete permissions, and hospital departments.</p>
+        </div>
+        <button class="primary" style="width:auto;" onclick="openAddUserModal()">+ Add account</button>
+      </div>
+
+      <div class="tabs" style="margin:16px 0;">
+        <button class="tab-btn active" id="usersTabBtn" onclick="switchUsersTab('accounts')">Accounts</button>
+        <button class="tab-btn" id="deptsTabBtn" onclick="switchUsersTab('departments')">Departments</button>
+      </div>
+
+      <div id="usersTabPanel">
+        <p class="sub" style="margin-bottom:12px;">Disable an account to block sign-in while keeping their ticket/reply history intact. "Can delete tickets" controls whether that department can delete its own tickets (IT can always delete any ticket).</p>
+        <div class="ticket-table-wrap" style="margin-bottom:0;">
+          <table class="ticket-table" style="min-width:0;">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Username</th>
+                <th>Department</th>
+                <th>Can delete tickets</th>
+                <th>Status</th>
+                <th>Joined</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody"></tbody>
+          </table>
+        </div>
+        <p class="err hidden" id="usersError" style="margin-top:10px;"></p>
+      </div>
+
+      <div id="deptsTabPanel" class="hidden">
+        <p class="sub" style="margin-bottom:12px;">Add a department when a new one is set up in the hospital. Deactivate one instead of deleting it if it already has tickets or an account — it will disappear from dropdowns but past tickets stay intact, and you can reactivate it anytime.</p>
+        <div class="row" style="align-items:flex-start;">
+          <div class="field" style="margin-bottom:0;flex:1;">
+            <input id="dept_new_name" placeholder="Department name (e.g. Palliative Care)">
+          </div>
+          <button class="primary" style="width:auto;" onclick="addDepartment()">Add</button>
+        </div>
+        <p class="err hidden" id="deptError" style="margin-top:8px;"></p>
+        <div class="ticket-table-wrap" style="margin-bottom:0;margin-top:12px;">
+          <table class="ticket-table" style="min-width:0;">
+            <thead>
+              <tr>
+                <th>Department name</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="deptsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 </div>
@@ -1405,6 +1397,7 @@ const API_TICKETS = "/ticketing-system-tpmc/tickets";
 const API_NOTIFICATIONS = "/ticketing-system-tpmc/tickets/notifications.php";
 const API_USERS = "/ticketing-system-tpmc/users";
 const API_STAFF = "/ticketing-system-tpmc/staff";
+const API_DEPARTMENTS = "/ticketing-system-tpmc/departments";
 
 let tickets = [];
 let currentUser = null;
@@ -1622,7 +1615,10 @@ function initials(fullname) {
 function enterDashboard(user) {
   currentUser = { id: user.id, fullname: user.fullname, username: user.username, department: user.department };
   document.getElementById('authGate').classList.add('hidden');
+  document.getElementById('usersPageView').classList.add('hidden');
   document.getElementById('dashboard').classList.remove('hidden');
+  document.getElementById('sidebarDashboardBtn').classList.add('active');
+  document.getElementById('sidebarUsersBtn').classList.remove('active');
   document.getElementById('appSidebar').classList.remove('hidden');
   document.getElementById('userMenuAvatar').textContent = initials(user.fullname);
   document.getElementById('userMenuName').textContent = user.fullname;
@@ -1635,6 +1631,7 @@ function enterDashboard(user) {
   document.getElementById('notifWrap').classList.remove('hidden');
   loadTickets();
   loadNotifications();
+  loadDepartments();
   if (isIT()) { loadITStaffList(); loadITStaffNames(); }
   if (notifPollInterval) clearInterval(notifPollInterval);
   notifPollInterval = setInterval(loadNotifications, 20000);
@@ -1664,6 +1661,7 @@ async function logout() {
     await fetch(`${API_AUTH}/logout.php`, { method: 'POST', credentials: 'include' });
   } catch (e) { /* fine, proceed with client-side logout anyway */ }
   document.getElementById('dashboard').classList.add('hidden');
+  document.getElementById('usersPageView').classList.add('hidden');
   document.getElementById('authGate').classList.remove('hidden');
   document.getElementById('appSidebar').classList.add('hidden');
   showLogin();
@@ -1672,6 +1670,7 @@ async function logout() {
   document.getElementById('userMenu').classList.add('hidden');
   document.getElementById('tabSubmitBtn').classList.add('hidden');
   document.getElementById('sidebarDeletedBtn').classList.add('hidden');
+  document.getElementById('sidebarUsersBtn').classList.add('hidden');
   document.getElementById('userMenu').classList.remove('open');
   document.getElementById('userMenuPanel').classList.add('hidden');
 }
@@ -2567,13 +2566,10 @@ function getDateRangeBounds() {
   return null; // 'All'
 }
 
-const ALL_DEPARTMENTS = [
-  "Accounting","Admin","Admitting","Audiometry","Audit","Billing","Biomedical","Cashier","CSR",
-  "Dietary","Emergency Room","Engineering","Eye Center","Finance","Heart Station","Hemodialysis",
-  "HMO","Human Resources","ICU","Industrial","IT Department","Laboratory","Medical Records","NICU",
-  "Outpatient Department","Pharmacy","PhilHealth","PhilHealth Yakap","Physical Rehab","Pulmonology",
-  "Purchasing","Radiology","Station 3A","Station 3B","Station 3C"
-];
+// Populated dynamically from the departments table (see loadDepartments()
+// / populateDepartmentSelects()) instead of being hardcoded, so IT can add
+// or retire departments from the "Manage users" page without a code change.
+const ALL_DEPARTMENTS = [];
 
 function populateDepartmentFilter() {
   const sel = document.getElementById('departmentFilter');
@@ -3260,16 +3256,237 @@ let systemUsers = [];
 let pendingToggleUser = null; // { id, fullname, nextActive }
 let pendingDeleteUser = null; // { id, fullname }
 
-async function openUsersModal() {
+function showDashboardPage() {
+  document.getElementById('usersPageView').classList.add('hidden');
+  document.getElementById('dashboard').classList.remove('hidden');
+  document.getElementById('sidebarDashboardBtn').classList.add('active');
+  document.getElementById('sidebarUsersBtn').classList.remove('active');
+}
+
+async function showUsersPage() {
   if (!isIT()) return;
+  document.getElementById('dashboard').classList.add('hidden');
+  document.getElementById('usersPageView').classList.remove('hidden');
+  document.getElementById('sidebarDashboardBtn').classList.remove('active');
+  document.getElementById('sidebarUsersBtn').classList.add('active');
+  switchUsersTab('accounts');
   document.getElementById('usersError').classList.add('hidden');
-  document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="6" class="center-msg">Loading...</td></tr>`;
-  document.getElementById('usersView').classList.remove('hidden');
+  document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="7" class="center-msg">Loading...</td></tr>`;
+  await loadUsers();
+  await loadDepartments();
+}
+
+function switchUsersTab(tab) {
+  const isAccounts = tab === 'accounts';
+  document.getElementById('usersTabBtn').classList.toggle('active', isAccounts);
+  document.getElementById('deptsTabBtn').classList.toggle('active', !isAccounts);
+  document.getElementById('usersTabPanel').classList.toggle('hidden', !isAccounts);
+  document.getElementById('deptsTabPanel').classList.toggle('hidden', isAccounts);
+  if (!isAccounts) renderDepartmentsTable();
+}
+
+let allDepartments = [];
+
+async function loadDepartments() {
+  try {
+    const res = await fetch(`${API_DEPARTMENTS}/list.php`, { credentials: 'include' });
+    const data = await res.json();
+    if (!res.ok) return;
+    allDepartments = data.departments || [];
+    populateDepartmentSelects();
+    if (!document.getElementById('deptsTabPanel').classList.contains('hidden')) {
+      renderDepartmentsTable();
+    }
+  } catch (e) { /* selects just stay empty; user can retry by reopening */ }
+}
+
+function populateDepartmentSelects() {
+  const active = allDepartments.filter(d => d.is_active).map(d => d.name);
+
+  const submitSel = document.getElementById('f_department');
+  if (submitSel) {
+    const current = submitSel.value;
+    submitSel.innerHTML = '<option value="">Select department...</option>' +
+      active.map(d => `<option>${escapeHTML(d)}</option>`).join('') +
+      '<option value="Others">Others (please specify)</option>';
+    if (current) submitSel.value = current;
+  }
+
+  const editSel = document.getElementById('editUser_department');
+  if (editSel) {
+    const current = editSel.value;
+    // Include the current value even if it's since been deactivated, so
+    // editing an account doesn't silently change its department.
+    const options = current && !active.includes(current) ? [current, ...active] : active;
+    editSel.innerHTML = options.map(d => `<option>${escapeHTML(d)}</option>`).join('');
+    if (current) editSel.value = current;
+  }
+
+  const addSel = document.getElementById('addUser_department');
+  if (addSel) {
+    addSel.innerHTML = '<option value="">Select department...</option>' +
+      active.map(d => `<option>${escapeHTML(d)}</option>`).join('');
+  }
+
+  if (typeof populateDepartmentFilter === 'function') {
+    ALL_DEPARTMENTS.length = 0;
+    ALL_DEPARTMENTS.push(...active);
+    populateDepartmentFilter();
+  }
+}
+
+function renderDepartmentsTable() {
+  const body = document.getElementById('deptsTableBody');
+  if (!allDepartments.length) {
+    body.innerHTML = `<tr><td colspan="3" class="center-msg">No departments yet.</td></tr>`;
+    return;
+  }
+  const sorted = [...allDepartments].sort((a, b) => a.name.localeCompare(b.name));
+  body.innerHTML = sorted.map(d => {
+    const statusBadge = d.is_active
+      ? `<span class="row-badge s-Open">Active</span>`
+      : `<span class="row-badge" style="background:#eee;color:#777;">Inactive</span>`;
+    const isITDept = d.name === 'IT Department';
+    return `
+      <tr>
+        <td>${escapeHTML(d.name)}</td>
+        <td>${statusBadge}</td>
+        <td style="white-space:nowrap;">
+          ${isITDept ? `<span class="meta">Cannot be deactivated</span>` : `<button class="btn-secondary" style="width:auto;padding:2px 8px;font-size:12px;" onclick="toggleDepartmentActive(${d.id}, ${!d.is_active})">${d.is_active ? 'Deactivate' : 'Activate'}</button>`}
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function addDepartment() {
+  const errEl = document.getElementById('deptError');
+  errEl.classList.add('hidden');
+  const nameEl = document.getElementById('dept_new_name');
+  const name = nameEl.value.trim();
+  if (!name) {
+    errEl.textContent = 'Please enter a department name.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  try {
+    const res = await fetch(`${API_DEPARTMENTS}/create.php`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.textContent = data.error || 'Failed to add department.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+    nameEl.value = '';
+    await loadDepartments();
+    renderDepartmentsTable();
+  } catch (e) {
+    errEl.textContent = 'Could not connect to the server.';
+    errEl.classList.remove('hidden');
+  }
+}
+
+async function toggleDepartmentActive(deptId, active) {
+  const errEl = document.getElementById('deptError');
+  errEl.classList.add('hidden');
+  try {
+    const res = await fetch(`${API_DEPARTMENTS}/toggle_active.php`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ department_id: deptId, active })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.textContent = data.error || 'Failed to update department.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+    await loadDepartments();
+    renderDepartmentsTable();
+  } catch (e) {
+    errEl.textContent = 'Could not connect to the server.';
+    errEl.classList.remove('hidden');
+  }
+}
+
+function openAddUserModal() {
+  document.getElementById('addUser_fullname').value = '';
+  document.getElementById('addUser_username').value = '';
+  document.getElementById('addUser_email').value = '';
+  document.getElementById('addUser_password').value = '';
+  document.getElementById('addUserError').classList.add('hidden');
+  populateDepartmentSelects();
+  document.getElementById('addUserView').classList.remove('hidden');
+}
+
+function closeAddUserModal() {
+  document.getElementById('addUserView').classList.add('hidden');
+}
+
+async function submitAddUser() {
+  const fullname = document.getElementById('addUser_fullname').value.trim();
+  const username = document.getElementById('addUser_username').value.trim();
+  const email = document.getElementById('addUser_email').value.trim();
+  const department = document.getElementById('addUser_department').value;
+  const password = document.getElementById('addUser_password').value;
+  const errEl = document.getElementById('addUserError');
+
+  if (!fullname || !username || !email || !department || !password) {
+    errEl.textContent = 'Please fill in all fields.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_USERS}/create.php`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fullname, username, email, department, password })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.textContent = data.error || 'Failed to add account.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+  } catch (e) {
+    errEl.textContent = 'Could not connect to the server.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  closeAddUserModal();
   await loadUsers();
 }
 
-function closeUsersModal() {
-  document.getElementById('usersView').classList.add('hidden');
+async function toggleUserDeletePermission(userId, allow) {
+  const errEl = document.getElementById('usersError');
+  errEl.classList.add('hidden');
+  try {
+    const res = await fetch(`${API_USERS}/toggle_delete_permission.php`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, can_delete_tickets: allow })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.textContent = data.error || 'Failed to update permission.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+  } catch (e) {
+    errEl.textContent = 'Could not connect to the server.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  await loadUsers();
 }
 
 async function loadUsers() {
@@ -3297,20 +3514,27 @@ async function loadUsers() {
 function renderUsersTable() {
   const body = document.getElementById('usersTableBody');
   if (!systemUsers.length) {
-    body.innerHTML = `<tr><td colspan="6" class="center-msg">No users found.</td></tr>`;
+    body.innerHTML = `<tr><td colspan="7" class="center-msg">No users found.</td></tr>`;
     return;
   }
   body.innerHTML = systemUsers.map(u => {
     const isSelf = currentUser && Number(u.id) === Number(currentUser.id);
+    const isITDept = u.department === 'IT Department';
     const joined = u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
     const statusBadge = u.is_active
       ? `<span class="row-badge s-Open">Active</span>`
       : `<span class="row-badge" style="background:#eee;color:#777;">Disabled</span>`;
+    const canDeleteCell = isITDept
+      ? `<span class="meta">Always allowed</span>`
+      : (u.can_delete_tickets
+          ? `<span class="row-badge s-Open">Allowed</span> <button class="btn-secondary" style="width:auto;padding:2px 8px;font-size:12px;margin-left:4px;" onclick="toggleUserDeletePermission(${u.id}, false)">Revoke</button>`
+          : `<span class="row-badge" style="background:#eee;color:#777;">Not allowed</span> <button class="btn-secondary" style="width:auto;padding:2px 8px;font-size:12px;margin-left:4px;" onclick="toggleUserDeletePermission(${u.id}, true)">Allow</button>`);
     return `
       <tr>
         <td>${escapeHTML(u.fullname)}${isSelf ? ' <span class="meta">(you)</span>' : ''}</td>
         <td>${escapeHTML(u.username)}</td>
         <td>${escapeHTML(u.department)}</td>
+        <td style="white-space:nowrap;">${canDeleteCell}</td>
         <td>${statusBadge}</td>
         <td>${joined}</td>
         <td style="white-space:nowrap;">
