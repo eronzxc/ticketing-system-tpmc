@@ -43,6 +43,19 @@ if (!$isIT && !$isOwner) {
     die(json_encode(['error' => 'Only IT or the ticket owner can delete this ticket.']));
 }
 
+if (!$isIT) {
+    // Check the LIVE value from the database (not the session), so an
+    // IT toggle takes effect immediately without the department account
+    // needing to log out and back in.
+    $stmt = $pdo->prepare('SELECT can_delete_tickets FROM users WHERE id = ?');
+    $stmt->execute([$user['id']]);
+    $perm = $stmt->fetch();
+    if (!$perm || !$perm['can_delete_tickets']) {
+        http_response_code(403);
+        die(json_encode(['error' => 'Your department is not allowed to delete tickets. Contact IT if you need this changed.']));
+    }
+}
+
 // Soft delete only: the row (and its ticket number) is kept in the
 // database so numbering never gets reused and nothing is unrecoverable.
 // It's just excluded from list/get results from now on.
