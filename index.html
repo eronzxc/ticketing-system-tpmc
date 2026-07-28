@@ -741,7 +741,7 @@
   </div>
 </header>
 <div class="body-row">
-<nav class="sidebar">
+<nav class="sidebar hidden" id="appSidebar">
   <div class="sidebar-nav">
     <button class="sidebar-item active" title="Dashboard" aria-label="Dashboard">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
@@ -916,7 +916,7 @@
           </div>
           <div class="field">
             <label>Remarks</label>
-            <textarea id="e_remarks" placeholder="Internal notes (e.g. root cause, parts replaced, etc.)"></textarea>
+            <textarea id="e_remarks" placeholder="Internal notes (e.g. who actually requested, root cause, parts replaced, etc.)"></textarea>
           </div>
           <p class="err hidden" id="editError"></p>
         </div>
@@ -1399,7 +1399,6 @@
               <th id="th-id" class="sortable-th" onclick="toggleSort('id')">ID<span class="sort-arrow" id="arrow-id"></span></th>
               <th>Summary</th>
               <th>Requester</th>
-              <th>Department</th>
               <th id="th-priority" class="sortable-th" onclick="toggleSort('priority')">Priority<span class="sort-arrow" id="arrow-priority"></span></th>
               <th>Date Requested</th>
               <th id="th-dueDate" class="sortable-th" onclick="toggleSort('dueDate')">Due date<span class="sort-arrow" id="arrow-dueDate"></span></th>
@@ -1407,6 +1406,7 @@
               <th>Category</th>
               <th>Date Resolved</th>
               <th>Resolved by</th>
+              <th id="th-remarks" class="hidden">Remarks</th>
             </tr>
           </thead>
           <tbody id="ticketTableBody"></tbody>
@@ -1716,6 +1716,7 @@ function enterDashboard(user) {
   currentUser = { id: user.id, fullname: user.fullname, username: user.username, department: user.department };
   document.getElementById('authGate').classList.add('hidden');
   document.getElementById('dashboard').classList.remove('hidden');
+  document.getElementById('appSidebar').classList.remove('hidden');
   document.getElementById('userMenuAvatar').textContent = initials(user.fullname);
   document.getElementById('userMenuName').textContent = user.fullname;
   document.getElementById('userMenuDept').textContent = user.department;
@@ -1723,6 +1724,7 @@ function enterDashboard(user) {
   document.getElementById('tabSubmitBtn').classList.remove('hidden');
   document.getElementById('sidebarDeletedBtn').classList.toggle('hidden', !isIT());
   document.getElementById('sidebarUsersBtn').classList.toggle('hidden', !isIT());
+  document.getElementById('th-remarks').classList.toggle('hidden', !isIT());
   document.getElementById('notifWrap').classList.remove('hidden');
   loadTickets();
   loadNotifications();
@@ -1755,6 +1757,7 @@ async function logout() {
   } catch (e) { /* fine, proceed with client-side logout anyway */ }
   document.getElementById('dashboard').classList.add('hidden');
   document.getElementById('authGate').classList.remove('hidden');
+  document.getElementById('appSidebar').classList.add('hidden');
   showLogin();
   document.getElementById('login_username').value = '';
   document.getElementById('login_password').value = '';
@@ -2181,7 +2184,7 @@ function removeEditReplyFile(commentId, index) {
 
 function removeKeptAttachment(commentId, index) {
   editReplyExistingAttachments.splice(index, 1);
-  renderTicketDetail(selectedTicketId);
+  renderTicketDetail(openTicketId);
 }
 
 document.addEventListener('click', (e) => {
@@ -2328,7 +2331,7 @@ async function saveTicketEdit() {
     if (idx !== -1) tickets[idx] = normalizeTicket(data.ticket);
     closeEditModal();
     renderTickets();
-    if (selectedTicketId === data.ticket.id) renderTicketDetail(data.ticket.id);
+    if (openTicketId === data.ticket.id) renderTicketDetail(data.ticket.id);
   } catch (e) {
     errEl.textContent = 'Could not connect to the server.';
     errEl.classList.remove('hidden');
@@ -2530,6 +2533,7 @@ function escapeHTML(str) {
 }
 
 let selectedTicketId = null;
+let openTicketId = null;
 let detailOpen = false;
 
 async function postReply(id) {
@@ -2562,7 +2566,7 @@ async function postReply(id) {
   }
   replySelectedFiles = [];
   await loadTickets();
-  if (selectedTicketId === id) openTicketDetail(id);
+  if (openTicketId === id) openTicketDetail(id);
 }
 
 function summaryOf(t) {
@@ -2768,7 +2772,6 @@ function renderTickets() {
           <td class="td-id">${t.id}</td>
           <td class="td-summary">${escapeHTML(summaryOf(t))}</td>
           <td>${escapeHTML(t.requester||'')}</td>
-          <td>${escapeHTML(t.department||'')}</td>
           <td><span class="row-badge p-${t.priority}">${t.priority}</span></td>
           <td>${requestedStr}</td>
           <td${isOverdue ? ' style="color:#c0392b;font-weight:600;"' : ''}>${dueStr}${isOverdue ? ' ⚠' : ''}</td>
@@ -2776,14 +2779,17 @@ function renderTickets() {
           <td>${escapeHTML(t.category||'')}</td>
           <td>${resolvedStr}</td>
           <td>${escapeHTML(t.resolvedBy || '—')}</td>
+          ${isIT() ? `<td>${t.remarks ? escapeHTML(t.remarks) : '—'}</td>` : ``}
         </tr>`;
     }).join('');
   }
 
-  // keep detail panel in sync (e.g. if the selected ticket got filtered out)
-  if (detailOpen && selectedTicketId && filtered.some(t => t.id === selectedTicketId)) {
-    renderTicketDetail(selectedTicketId);
-  } else if (detailOpen && selectedTicketId) {
+  // keep detail panel in sync (e.g. if the open ticket got filtered out) —
+  // based on openTicketId, not selectedTicketId, so a plain left-click
+  // (row highlight only) never opens or switches the detail panel.
+  if (detailOpen && openTicketId && filtered.some(t => t.id === openTicketId)) {
+    renderTicketDetail(openTicketId);
+  } else if (detailOpen && openTicketId) {
     closeTicketDetail();
   }
 }
@@ -2914,12 +2920,13 @@ async function deleteTicket(id) {
     throw new Error(data.error || 'Failed to delete the ticket.');
   }
   tickets = tickets.filter(t => t.id !== id);
-  if (selectedTicketId === id) closeTicketDetail();
+  if (openTicketId === id) closeTicketDetail();
   renderTickets();
 }
 
 async function openTicketDetail(id) {
   selectedTicketId = id;
+  openTicketId = id;
   detailOpen = true;
   editingCommentId = null;
   replySelectedFiles = [];
@@ -2935,11 +2942,11 @@ async function openTicketDetail(id) {
       tickets = tickets.map(t => t.id === id ? { ...t, ...full } : t);
     }
   } catch (e) { /* keep the existing data in memory */ }
-  if (selectedTicketId === id) renderTicketDetail(id);
+  if (openTicketId === id) renderTicketDetail(id);
 }
 
 function closeTicketDetail() {
-  selectedTicketId = null;
+  openTicketId = null;
   detailOpen = false;
   editingCommentId = null;
   replySelectedFiles = [];
@@ -3091,10 +3098,12 @@ function renderTicketDetail(id) {
         <label>Due date</label>
         <div class="side-value">${t.dueDate ? new Date(t.dueDate).toLocaleString('en-PH',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '—'}</div>
       </div>
+      ${isIT() ? `
       <div class="side-field">
         <label>Remarks</label>
         <div class="side-value">${t.remarks ? escapeHTML(t.remarks) : '—'}</div>
       </div>
+      ` : ``}
     </div>
   `;
   panel.classList.remove('hidden');

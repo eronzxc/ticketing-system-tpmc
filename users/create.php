@@ -1,6 +1,11 @@
 <?php
+ini_set('display_errors', '0');
+error_reporting(E_ALL);
+
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/session.php';
+
+requireIT();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -14,9 +19,7 @@ $username   = trim($input['username'] ?? '');
 $email      = trim($input['email'] ?? '');
 $department = trim($input['department'] ?? '');
 $password   = $input['password'] ?? '';
-$confirm    = $input['confirmPassword'] ?? '';
 
-// ---- Validation ----
 if ($fullname === '' || $username === '' || $email === '' || $department === '' || $password === '') {
     http_response_code(400);
     die(json_encode(['error' => 'Please fill in all fields.']));
@@ -29,12 +32,17 @@ if (strlen($password) < 6) {
     http_response_code(400);
     die(json_encode(['error' => 'Password must be at least 6 characters.']));
 }
-if ($password !== $confirm) {
-    http_response_code(400);
-    die(json_encode(['error' => 'Password and confirm password do not match.']));
+
+// One account per department — the UNIQUE constraint on users.department
+// enforces this at the DB level too, but we check here first for a
+// friendlier error message.
+$stmt = $pdo->prepare('SELECT id FROM users WHERE department = ?');
+$stmt->execute([$department]);
+if ($stmt->fetch()) {
+    http_response_code(409);
+    die(json_encode(['error' => 'A department account already exists for "' . $department . '". Edit that account instead of creating a new one.']));
 }
 
-// Check duplicate username
 $stmt = $pdo->prepare('SELECT id FROM users WHERE username = ?');
 $stmt->execute([$username]);
 if ($stmt->fetch()) {
@@ -42,8 +50,6 @@ if ($stmt->fetch()) {
     die(json_encode(['error' => 'This username is already taken.']));
 }
 
-// Check duplicate email — needed since email is what "Forgot password"
-// looks the account up by.
 $stmt = $pdo->prepare('SELECT id FROM users WHERE email = ?');
 $stmt->execute([$email]);
 if ($stmt->fetch()) {
@@ -54,18 +60,14 @@ if ($stmt->fetch()) {
 $hash = password_hash($password, PASSWORD_DEFAULT);
 
 $stmt = $pdo->prepare(
-    'INSERT INTO users (fullname, username, email, password_hash, department) VALUES (?, ?, ?, ?, ?)'
+    'INSERT INTO users (fullname, username, email, password_hash, department, is_active) VALUES (?, ?, ?, ?, ?, 1)'
 );
 $stmt->execute([$fullname, $username, $email, $hash, $department]);
 
-$user = [
-    'id'         => $pdo->lastInsertId(),
-    'fullname'   => $fullname,
-    'username'   => $username,
-    'email'      => $email,
-    'department' => $department,
-];
-
-$_SESSION['user'] = $user;
+$stmt = $pdo->prepare('SELECT id, fullname, username, department, is_active, created_at AS createdAt FROM users WHERE id = ?');
+$stmt->execute([$pdo->lastInsertId()]);
+$user = $stmt->fetch();
+$user['is_active'] = (bool)$user['is_active'];
+$user['id'] = (int)$user['id'];
 
 echo json_encode(['user' => $user]);
