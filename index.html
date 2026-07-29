@@ -796,7 +796,7 @@
       <div class="user-menu-panel hidden" id="userMenuPanel" style="left:52px; bottom:0; top:auto;">
         <div class="user-menu-name" id="userMenuName" style="font-weight:500; padding:4px 12px;"></div>
         <div class="user-menu-dept" id="userMenuDept"></div>
-        <button class="user-menu-item" onclick="openChangePasswordModal()">Change password</button>
+        <button class="user-menu-item" id="changePasswordMenuBtn" onclick="openChangePasswordModal()">Change password</button>
         <button class="user-menu-item" onclick="openSwitchAccountModal()">Switch account</button>
         <button class="user-menu-item" onclick="logout()">Logout</button>
       </div>
@@ -1214,8 +1214,18 @@
           <datalist id="departmentSuggestions"></datalist>
         </div>
         <div class="field">
-          <label>Change password <span class="meta" style="font-weight:400;">(leave blank to keep current password)</span></label>
-          <input id="editUser_password" type="password" autocomplete="new-password" placeholder="New password">
+          <label>New password <span class="meta" style="font-weight:400;">(leave blank to keep current password)</span></label>
+          <div class="password-field">
+            <input type="password" id="editUser_password" autocomplete="new-password" placeholder="••••••••">
+            <button type="button" class="password-toggle" onclick="togglePasswordVisibility('editUser_password', this)" aria-label="Show password"></button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Confirm new password</label>
+          <div class="password-field">
+            <input type="password" id="editUser_password2" autocomplete="new-password" placeholder="••••••••">
+            <button type="button" class="password-toggle" onclick="togglePasswordVisibility('editUser_password2', this)" aria-label="Show password"></button>
+          </div>
         </div>
         <p class="err hidden" id="editUserError" style="margin-top:8px;"></p>
       </div>
@@ -1653,6 +1663,7 @@ function enterDashboard(user) {
   document.getElementById('sidebarUsersBtn').classList.toggle('hidden', !isIT());
   document.getElementById('th-remarks').classList.toggle('hidden', !isIT());
   document.getElementById('exportCsvBtn').classList.toggle('hidden', !isIT());
+  document.getElementById('changePasswordMenuBtn').classList.toggle('hidden', !isIT());
   document.getElementById('notifWrap').classList.remove('hidden');
   loadTickets();
   loadNotifications();
@@ -2690,13 +2701,42 @@ function exportTicketsCSV() {
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  const stamp = new Date().toISOString().slice(0,10);
   a.href = url;
-  a.download = `tpmc-tickets-${stamp}.csv`;
+  a.download = buildExportFilename();
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+function filenameSlug(str) {
+  return String(str).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+function buildExportFilename() {
+  const stamp = new Date().toISOString().slice(0, 10);
+  const parts = ['tpmc-tickets', stamp];
+
+  const statusFilter = document.getElementById('statusFilter').value;
+  const priorityFilter = document.getElementById('priorityFilter').value;
+  const categoryFilter = document.getElementById('categoryFilter').value;
+  const departmentFilter = document.getElementById('departmentFilter').value;
+  const dateRangeFilter = document.getElementById('dateRangeFilter').value;
+
+  if (statusFilter && statusFilter !== 'All') parts.push(filenameSlug(statusFilter));
+  if (priorityFilter && priorityFilter !== 'All') parts.push(filenameSlug(priorityFilter));
+  if (categoryFilter && categoryFilter !== 'All') parts.push(filenameSlug(categoryFilter));
+  if (departmentFilter && departmentFilter !== 'All') parts.push(filenameSlug(departmentFilter));
+
+  if (dateRangeFilter === 'Custom') {
+    const from = document.getElementById('dateFrom').value;
+    const to = document.getElementById('dateTo').value;
+    if (from || to) parts.push(`${from || 'start'}-to-${to || 'end'}`);
+  } else if (dateRangeFilter && dateRangeFilter !== 'All') {
+    parts.push(filenameSlug(dateRangeFilter));
+  }
+
+  return parts.join('-') + '.csv';
 }
 
 function renderTickets() {
@@ -3612,6 +3652,7 @@ function openEditUserModal(userId) {
   document.getElementById('editUser_username').value = u.username;
   document.getElementById('editUser_department').value = u.department;
   document.getElementById('editUser_password').value = '';
+  document.getElementById('editUser_password2').value = '';
   document.getElementById('editUserError').classList.add('hidden');
   document.getElementById('editUserView').dataset.userId = u.id;
   document.getElementById('editUserView').classList.remove('hidden');
@@ -3627,6 +3668,7 @@ async function saveEditUser() {
   const username = document.getElementById('editUser_username').value.trim();
   const department = document.getElementById('editUser_department').value;
   const password = document.getElementById('editUser_password').value;
+  const password2 = document.getElementById('editUser_password2').value;
   const errEl = document.getElementById('editUserError');
   if (!fullname || !username || !department) {
     errEl.textContent = 'Full name, username, and department are required.';
@@ -3635,6 +3677,11 @@ async function saveEditUser() {
   }
   if (password && password.length < 6) {
     errEl.textContent = 'New password must be at least 6 characters.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  if (password && password !== password2) {
+    errEl.textContent = 'New password and confirmation do not match.';
     errEl.classList.remove('hidden');
     return;
   }
