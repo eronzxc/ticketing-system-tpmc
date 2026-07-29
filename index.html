@@ -1205,9 +1205,17 @@
           <input id="editUser_fullname">
         </div>
         <div class="field">
+          <label>Username</label>
+          <input id="editUser_username" autocomplete="off">
+        </div>
+        <div class="field">
           <label>Department / Unit</label>
           <input id="editUser_department" list="departmentSuggestions" autocomplete="off">
           <datalist id="departmentSuggestions"></datalist>
+        </div>
+        <div class="field">
+          <label>Change password <span class="meta" style="font-weight:400;">(leave blank to keep current password)</span></label>
+          <input id="editUser_password" type="password" autocomplete="new-password" placeholder="New password">
         </div>
         <p class="err hidden" id="editUserError" style="margin-top:8px;"></p>
       </div>
@@ -3600,7 +3608,9 @@ function openEditUserModal(userId) {
   const u = systemUsers.find(x => Number(x.id) === Number(userId));
   if (!u) return;
   document.getElementById('editUser_fullname').value = u.fullname;
+  document.getElementById('editUser_username').value = u.username;
   document.getElementById('editUser_department').value = u.department;
+  document.getElementById('editUser_password').value = '';
   document.getElementById('editUserError').classList.add('hidden');
   document.getElementById('editUserView').dataset.userId = u.id;
   document.getElementById('editUserView').classList.remove('hidden');
@@ -3613,19 +3623,28 @@ function closeEditUserModal() {
 async function saveEditUser() {
   const userId = document.getElementById('editUserView').dataset.userId;
   const fullname = document.getElementById('editUser_fullname').value.trim();
+  const username = document.getElementById('editUser_username').value.trim();
   const department = document.getElementById('editUser_department').value;
+  const password = document.getElementById('editUser_password').value;
   const errEl = document.getElementById('editUserError');
-  if (!fullname || !department) {
-    errEl.textContent = 'Full name and department are required.';
+  if (!fullname || !username || !department) {
+    errEl.textContent = 'Full name, username, and department are required.';
     errEl.classList.remove('hidden');
     return;
   }
+  if (password && password.length < 6) {
+    errEl.textContent = 'New password must be at least 6 characters.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  const payload = { user_id: Number(userId), fullname, username, department };
+  if (password) payload.password = password;
   try {
     const res = await fetch(`${API_USERS}/update.php`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ user_id: Number(userId), fullname, department })
+      body: JSON.stringify(payload)
     });
     const data = await res.json();
     if (!res.ok) {
@@ -3644,6 +3663,7 @@ async function saveEditUser() {
   // If the edited account is the currently logged-in user, refresh their header display too.
   if (currentUser && Number(userId) === Number(currentUser.id)) {
     currentUser.fullname = fullname;
+    currentUser.username = username;
     currentUser.department = department;
     document.getElementById('userMenuAvatar').textContent = initials(fullname);
     document.getElementById('userMenuName').textContent = fullname;
