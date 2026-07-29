@@ -1147,7 +1147,7 @@
         </div>
         <div class="field">
           <label>Department / Unit</label>
-          <select id="addUser_department"></select>
+          <input id="addUser_department" list="departmentSuggestions" placeholder="Type existing or new department name" autocomplete="off">
         </div>
         <div class="field">
           <label>Password</label>
@@ -1209,7 +1209,8 @@
         </div>
         <div class="field">
           <label>Department / Unit</label>
-          <select id="editUser_department"></select>
+          <input id="editUser_department" list="departmentSuggestions" autocomplete="off">
+          <datalist id="departmentSuggestions"></datalist>
         </div>
         <p class="err hidden" id="editUserError" style="margin-top:8px;"></p>
       </div>
@@ -1363,62 +1364,31 @@
     </div>
 
     <div id="usersPageView" class="hidden">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:0;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
         <div>
           <h2 style="margin:0 0 4px;font-size:20px;">System users</h2>
-          <p class="sub" style="margin:0;">Manage accounts, delete permissions, and hospital departments.</p>
+          <p class="sub" style="margin:0;">Manage accounts that can access this system. Disable an account to block sign-in (and hide its department from ticket dropdowns) while keeping their ticket/reply history intact. "Can delete tickets" controls whether that department can delete its own tickets (IT can always delete any ticket).</p>
         </div>
         <button class="primary" style="width:auto;" onclick="openAddUserModal()">+ Add account</button>
       </div>
 
-      <div class="tabs" style="margin:16px 0;">
-        <button class="tab-btn active" id="usersTabBtn" onclick="switchUsersTab('accounts')">Accounts</button>
-        <button class="tab-btn" id="deptsTabBtn" onclick="switchUsersTab('departments')">Departments</button>
+      <div class="ticket-table-wrap" style="margin-bottom:0;">
+        <table class="ticket-table" style="min-width:0;">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Username</th>
+              <th>Department</th>
+              <th>Can delete tickets</th>
+              <th>Status</th>
+              <th>Joined</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="usersTableBody"></tbody>
+        </table>
       </div>
-
-      <div id="usersTabPanel">
-        <p class="sub" style="margin-bottom:12px;">Disable an account to block sign-in while keeping their ticket/reply history intact. "Can delete tickets" controls whether that department can delete its own tickets (IT can always delete any ticket).</p>
-        <div class="ticket-table-wrap" style="margin-bottom:0;">
-          <table class="ticket-table" style="min-width:0;">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Username</th>
-                <th>Department</th>
-                <th>Can delete tickets</th>
-                <th>Status</th>
-                <th>Joined</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="usersTableBody"></tbody>
-          </table>
-        </div>
-        <p class="err hidden" id="usersError" style="margin-top:10px;"></p>
-      </div>
-
-      <div id="deptsTabPanel" class="hidden">
-        <p class="sub" style="margin-bottom:12px;">Add a department when a new one is set up in the hospital. Deactivate one instead of deleting it if it already has tickets or an account — it will disappear from dropdowns but past tickets stay intact, and you can reactivate it anytime.</p>
-        <div class="row" style="align-items:flex-start;">
-          <div class="field" style="margin-bottom:0;flex:1;">
-            <input id="dept_new_name" placeholder="Department name (e.g. Palliative Care)">
-          </div>
-          <button class="primary" style="width:auto;" onclick="addDepartment()">Add</button>
-        </div>
-        <p class="err hidden" id="deptError" style="margin-top:8px;"></p>
-        <div class="ticket-table-wrap" style="margin-bottom:0;margin-top:12px;">
-          <table class="ticket-table" style="min-width:0;">
-            <thead>
-              <tr>
-                <th>Department name</th>
-                <th>Status</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="deptsTableBody"></tbody>
-          </table>
-        </div>
-      </div>
+      <p class="err hidden" id="usersError" style="margin-top:10px;"></p>
     </div>
   </div>
 </div>
@@ -3320,23 +3290,13 @@ async function showUsersPage() {
   document.getElementById('usersPageView').classList.remove('hidden');
   document.getElementById('sidebarDashboardBtn').classList.remove('active');
   document.getElementById('sidebarUsersBtn').classList.add('active');
-  switchUsersTab('accounts');
   document.getElementById('usersError').classList.add('hidden');
   document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="7" class="center-msg">Loading...</td></tr>`;
   await loadUsers();
   await loadDepartments();
 }
 
-function switchUsersTab(tab) {
-  const isAccounts = tab === 'accounts';
-  document.getElementById('usersTabBtn').classList.toggle('active', isAccounts);
-  document.getElementById('deptsTabBtn').classList.toggle('active', !isAccounts);
-  document.getElementById('usersTabPanel').classList.toggle('hidden', !isAccounts);
-  document.getElementById('deptsTabPanel').classList.toggle('hidden', isAccounts);
-  if (!isAccounts) renderDepartmentsTable();
-}
-
-let allDepartments = [];
+let allDepartments = []; // list of department name strings, derived from active accounts
 
 async function loadDepartments() {
   try {
@@ -3345,124 +3305,28 @@ async function loadDepartments() {
     if (!res.ok) return;
     allDepartments = data.departments || [];
     populateDepartmentSelects();
-    if (!document.getElementById('deptsTabPanel').classList.contains('hidden')) {
-      renderDepartmentsTable();
-    }
   } catch (e) { /* selects just stay empty; user can retry by reopening */ }
 }
 
 function populateDepartmentSelects() {
-  const active = allDepartments.filter(d => d.is_active).map(d => d.name);
-
   const submitSel = document.getElementById('f_department');
   if (submitSel) {
     const current = submitSel.value;
     submitSel.innerHTML = '<option value="">Select department...</option>' +
-      active.map(d => `<option>${escapeHTML(d)}</option>`).join('') +
+      allDepartments.map(d => `<option>${escapeHTML(d)}</option>`).join('') +
       '<option value="Others">Others (please specify)</option>';
     if (current) submitSel.value = current;
   }
 
-  const editSel = document.getElementById('editUser_department');
-  if (editSel) {
-    const current = editSel.value;
-    // Include the current value even if it's since been deactivated, so
-    // editing an account doesn't silently change its department.
-    const options = current && !active.includes(current) ? [current, ...active] : active;
-    editSel.innerHTML = options.map(d => `<option>${escapeHTML(d)}</option>`).join('');
-    if (current) editSel.value = current;
-  }
-
-  const addSel = document.getElementById('addUser_department');
-  if (addSel) {
-    addSel.innerHTML = '<option value="">Select department...</option>' +
-      active.map(d => `<option>${escapeHTML(d)}</option>`).join('');
+  const suggestions = document.getElementById('departmentSuggestions');
+  if (suggestions) {
+    suggestions.innerHTML = allDepartments.map(d => `<option value="${escapeHTML(d)}">`).join('');
   }
 
   if (typeof populateDepartmentFilter === 'function') {
     ALL_DEPARTMENTS.length = 0;
-    ALL_DEPARTMENTS.push(...active);
+    ALL_DEPARTMENTS.push(...allDepartments);
     populateDepartmentFilter();
-  }
-}
-
-function renderDepartmentsTable() {
-  const body = document.getElementById('deptsTableBody');
-  if (!allDepartments.length) {
-    body.innerHTML = `<tr><td colspan="3" class="center-msg">No departments yet.</td></tr>`;
-    return;
-  }
-  const sorted = [...allDepartments].sort((a, b) => a.name.localeCompare(b.name));
-  body.innerHTML = sorted.map(d => {
-    const statusBadge = d.is_active
-      ? `<span class="row-badge s-Open">Active</span>`
-      : `<span class="row-badge" style="background:#eee;color:#777;">Inactive</span>`;
-    const isITDept = d.name === 'IT Department';
-    return `
-      <tr>
-        <td>${escapeHTML(d.name)}</td>
-        <td>${statusBadge}</td>
-        <td style="white-space:nowrap;">
-          ${isITDept ? `<span class="meta">Cannot be deactivated</span>` : `<button class="btn-secondary" style="width:auto;padding:2px 8px;font-size:12px;" onclick="toggleDepartmentActive(${d.id}, ${!d.is_active})">${d.is_active ? 'Deactivate' : 'Activate'}</button>`}
-        </td>
-      </tr>
-    `;
-  }).join('');
-}
-
-async function addDepartment() {
-  const errEl = document.getElementById('deptError');
-  errEl.classList.add('hidden');
-  const nameEl = document.getElementById('dept_new_name');
-  const name = nameEl.value.trim();
-  if (!name) {
-    errEl.textContent = 'Please enter a department name.';
-    errEl.classList.remove('hidden');
-    return;
-  }
-  try {
-    const res = await fetch(`${API_DEPARTMENTS}/create.php`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name })
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      errEl.textContent = data.error || 'Failed to add department.';
-      errEl.classList.remove('hidden');
-      return;
-    }
-    nameEl.value = '';
-    await loadDepartments();
-    renderDepartmentsTable();
-  } catch (e) {
-    errEl.textContent = 'Could not connect to the server.';
-    errEl.classList.remove('hidden');
-  }
-}
-
-async function toggleDepartmentActive(deptId, active) {
-  const errEl = document.getElementById('deptError');
-  errEl.classList.add('hidden');
-  try {
-    const res = await fetch(`${API_DEPARTMENTS}/toggle_active.php`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ department_id: deptId, active })
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      errEl.textContent = data.error || 'Failed to update department.';
-      errEl.classList.remove('hidden');
-      return;
-    }
-    await loadDepartments();
-    renderDepartmentsTable();
-  } catch (e) {
-    errEl.textContent = 'Could not connect to the server.';
-    errEl.classList.remove('hidden');
   }
 }
 
