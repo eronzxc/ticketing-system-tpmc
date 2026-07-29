@@ -5,17 +5,15 @@ error_reporting(E_ALL);
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/session.php';
 
-// Every logged-in account needs this (e.g. to populate the department
-// dropdown when submitting a ticket), not just IT — so requireLogin()
-// only, not requireIT().
+// Every logged-in account needs this to populate the department dropdown
+// when submitting a ticket, not just IT — so requireLogin() only.
 requireLogin();
 
-$stmt = $pdo->query('SELECT id, name, is_active, created_at AS createdAt FROM departments ORDER BY name ASC');
-$departments = $stmt->fetchAll();
-foreach ($departments as &$d) {
-    $d['is_active'] = (bool)$d['is_active'];
-    $d['id'] = (int)$d['id'];
-}
-unset($d);
+// Departments are derived from active accounts, not a separate table:
+// a department only shows up here if someone can actually log in as that
+// department to submit tickets. Disabling an account automatically hides
+// it here too; re-enabling brings it back.
+$stmt = $pdo->query("SELECT DISTINCT department FROM users WHERE is_active = 1 ORDER BY department ASC");
+$departments = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
 echo json_encode(['departments' => $departments]);

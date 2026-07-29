@@ -553,6 +553,40 @@
     border-radius: 999px;
   }
 
+  .perm-switch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    width: 40px;
+    height: 22px;
+    border-radius: 999px;
+    border: none;
+    cursor: pointer;
+    background: #ccc;
+    transition: background 0.15s ease;
+    padding: 0;
+    vertical-align: middle;
+  }
+  .perm-switch.on { background: var(--teal); }
+  .perm-switch .knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    transition: left 0.15s ease;
+  }
+  .perm-switch.on .knob { left: 20px; }
+  .perm-switch-label {
+    font-size: 12px;
+    color: var(--muted);
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+
   .ticket-detail {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -1199,6 +1233,23 @@
       <div class="modal-footer">
         <button class="btn-secondary" onclick="closeToggleUserModal()">Cancel</button>
         <button class="primary" id="toggleUserConfirmBtn" style="width:auto;" onclick="confirmToggleUser()">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toggleDeletePermView" class="modal-overlay hidden" style="z-index:1100;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="toggleDeletePermTitle">Update delete permission</h2>
+        <button class="ticket-detail-close" onclick="closeToggleDeletePermModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="sub" id="toggleDeletePermMsg"></p>
+        <p class="err hidden" id="toggleDeletePermError" style="margin-top:8px;"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeToggleDeletePermModal()">Cancel</button>
+        <button class="primary" id="toggleDeletePermConfirmBtn" style="width:auto;" onclick="confirmToggleDeletePerm()">Confirm</button>
       </div>
     </div>
   </div>
@@ -3465,15 +3516,35 @@ async function submitAddUser() {
   await loadUsers();
 }
 
-async function toggleUserDeletePermission(userId, allow) {
-  const errEl = document.getElementById('usersError');
+let pendingDeletePerm = null; // { id, fullname, nextAllow }
+
+function openToggleDeletePermModal(userId, nextAllow, fullname) {
+  pendingDeletePerm = { id: userId, fullname, nextAllow };
+  document.getElementById('toggleDeletePermTitle').textContent = nextAllow ? 'Allow ticket deletion' : 'Revoke ticket deletion';
+  document.getElementById('toggleDeletePermMsg').textContent = nextAllow
+    ? `Allow "${fullname}" to delete their own department's tickets?`
+    : `Revoke "${fullname}"'s ability to delete their own department's tickets? They can still view, submit, and reply to tickets — just not delete them.`;
+  document.getElementById('toggleDeletePermError').classList.add('hidden');
+  document.getElementById('toggleDeletePermConfirmBtn').textContent = nextAllow ? 'Allow' : 'Revoke';
+  document.getElementById('toggleDeletePermView').classList.remove('hidden');
+}
+
+function closeToggleDeletePermModal() {
+  document.getElementById('toggleDeletePermView').classList.add('hidden');
+  pendingDeletePerm = null;
+}
+
+async function confirmToggleDeletePerm() {
+  if (!pendingDeletePerm) return;
+  const { id, nextAllow } = pendingDeletePerm;
+  const errEl = document.getElementById('toggleDeletePermError');
   errEl.classList.add('hidden');
   try {
     const res = await fetch(`${API_USERS}/toggle_delete_permission.php`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: userId, can_delete_tickets: allow })
+      body: JSON.stringify({ user_id: id, can_delete_tickets: nextAllow })
     });
     const data = await res.json();
     if (!res.ok) {
@@ -3486,6 +3557,7 @@ async function toggleUserDeletePermission(userId, allow) {
     errEl.classList.remove('hidden');
     return;
   }
+  closeToggleDeletePermModal();
   await loadUsers();
 }
 
@@ -3526,9 +3598,7 @@ function renderUsersTable() {
       : `<span class="row-badge" style="background:#eee;color:#777;">Disabled</span>`;
     const canDeleteCell = isITDept
       ? `<span class="meta">Always allowed</span>`
-      : (u.can_delete_tickets
-          ? `<span class="row-badge s-Open">Allowed</span> <button class="btn-secondary" style="width:auto;padding:2px 8px;font-size:12px;margin-left:4px;" onclick="toggleUserDeletePermission(${u.id}, false)">Revoke</button>`
-          : `<span class="row-badge" style="background:#eee;color:#777;">Not allowed</span> <button class="btn-secondary" style="width:auto;padding:2px 8px;font-size:12px;margin-left:4px;" onclick="toggleUserDeletePermission(${u.id}, true)">Allow</button>`);
+      : `<button class="perm-switch ${u.can_delete_tickets ? 'on' : ''}" onclick="openToggleDeletePermModal(${u.id}, ${!u.can_delete_tickets}, '${escapeHTML(u.fullname).replace(/'/g, "\\'")}')" title="${u.can_delete_tickets ? 'Allowed — click to revoke' : 'Not allowed — click to allow'}"><span class="knob"></span></button><span class="perm-switch-label">${u.can_delete_tickets ? 'Allowed' : 'Not allowed'}</span>`;
     return `
       <tr>
         <td>${escapeHTML(u.fullname)}${isSelf ? ' <span class="meta">(you)</span>' : ''}</td>
