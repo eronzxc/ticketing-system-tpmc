@@ -772,6 +772,7 @@
       </div>
     </div>
     <button class="tab-btn active hidden" id="tabSubmitBtn" onclick="openSubmitModal()">+ Submit a concern</button>
+    <button class="tab-btn active hidden" id="topbarAddAccountBtn" onclick="openAddUserModal()">+ Add account</button>
   </div>
 </header>
 <div class="body-row">
@@ -1142,10 +1143,6 @@
           <input id="addUser_username" autocomplete="off">
         </div>
         <div class="field">
-          <label>Email</label>
-          <input id="addUser_email" type="email">
-        </div>
-        <div class="field">
           <label>Department / Unit</label>
           <input id="addUser_department" list="departmentSuggestions" placeholder="Type existing or new department name" autocomplete="off">
         </div>
@@ -1364,12 +1361,9 @@
     </div>
 
     <div id="usersPageView" class="hidden">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
-        <div>
-          <h2 style="margin:0 0 4px;font-size:20px;">System users</h2>
-          <p class="sub" style="margin:0;">Manage accounts that can access this system. Disable an account to block sign-in (and hide its department from ticket dropdowns) while keeping their ticket/reply history intact. "Can delete tickets" controls whether that department can delete its own tickets (IT can always delete any ticket).</p>
-        </div>
-        <button class="primary" style="width:auto;" onclick="openAddUserModal()">+ Add account</button>
+      <div style="margin-bottom:16px;">
+        <h2 style="margin:0 0 4px;font-size:20px;">System users</h2>
+        <p class="sub" style="margin:0;">Manage accounts that can access this system. Disable an account to block sign-in (and hide its department from ticket dropdowns) while keeping their ticket/reply history intact. "Can delete tickets" controls whether that department can delete its own tickets (IT can always delete any ticket).</p>
       </div>
 
       <div class="ticket-table-wrap" style="margin-bottom:0;">
@@ -1646,6 +1640,7 @@ function enterDashboard(user) {
   document.getElementById('userMenuDept').textContent = user.department;
   document.getElementById('userMenu').classList.remove('hidden');
   document.getElementById('tabSubmitBtn').classList.remove('hidden');
+  document.getElementById('topbarAddAccountBtn').classList.add('hidden');
   document.getElementById('sidebarDeletedBtn').classList.toggle('hidden', !isIT());
   document.getElementById('sidebarUsersBtn').classList.toggle('hidden', !isIT());
   document.getElementById('th-remarks').classList.toggle('hidden', !isIT());
@@ -1690,6 +1685,7 @@ async function logout() {
   document.getElementById('login_password').value = '';
   document.getElementById('userMenu').classList.add('hidden');
   document.getElementById('tabSubmitBtn').classList.add('hidden');
+  document.getElementById('topbarAddAccountBtn').classList.add('hidden');
   document.getElementById('sidebarDeletedBtn').classList.add('hidden');
   document.getElementById('sidebarUsersBtn').classList.add('hidden');
   document.getElementById('userMenu').classList.remove('open');
@@ -3284,12 +3280,23 @@ function showDashboardPage() {
   document.getElementById('sidebarUsersBtn').classList.remove('active');
 }
 
+function showDashboardPage() {
+  document.getElementById('usersPageView').classList.add('hidden');
+  document.getElementById('dashboard').classList.remove('hidden');
+  document.getElementById('sidebarDashboardBtn').classList.add('active');
+  document.getElementById('sidebarUsersBtn').classList.remove('active');
+  document.getElementById('topbarAddAccountBtn').classList.add('hidden');
+  document.getElementById('tabSubmitBtn').classList.remove('hidden');
+}
+
 async function showUsersPage() {
   if (!isIT()) return;
   document.getElementById('dashboard').classList.add('hidden');
   document.getElementById('usersPageView').classList.remove('hidden');
   document.getElementById('sidebarDashboardBtn').classList.remove('active');
   document.getElementById('sidebarUsersBtn').classList.add('active');
+  document.getElementById('tabSubmitBtn').classList.add('hidden');
+  document.getElementById('topbarAddAccountBtn').classList.remove('hidden');
   document.getElementById('usersError').classList.add('hidden');
   document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="7" class="center-msg">Loading...</td></tr>`;
   await loadUsers();
@@ -3333,7 +3340,6 @@ function populateDepartmentSelects() {
 function openAddUserModal() {
   document.getElementById('addUser_fullname').value = '';
   document.getElementById('addUser_username').value = '';
-  document.getElementById('addUser_email').value = '';
   document.getElementById('addUser_password').value = '';
   document.getElementById('addUserError').classList.add('hidden');
   populateDepartmentSelects();
@@ -3347,12 +3353,11 @@ function closeAddUserModal() {
 async function submitAddUser() {
   const fullname = document.getElementById('addUser_fullname').value.trim();
   const username = document.getElementById('addUser_username').value.trim();
-  const email = document.getElementById('addUser_email').value.trim();
-  const department = document.getElementById('addUser_department').value;
+  const department = document.getElementById('addUser_department').value.trim();
   const password = document.getElementById('addUser_password').value;
   const errEl = document.getElementById('addUserError');
 
-  if (!fullname || !username || !email || !department || !password) {
+  if (!fullname || !username || !department || !password) {
     errEl.textContent = 'Please fill in all fields.';
     errEl.classList.remove('hidden');
     return;
@@ -3363,7 +3368,7 @@ async function submitAddUser() {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fullname, username, email, department, password })
+      body: JSON.stringify({ fullname, username, department, password })
     });
     const data = await res.json();
     if (!res.ok) {

@@ -20,11 +20,13 @@ $email      = trim($input['email'] ?? '');
 $department = trim($input['department'] ?? '');
 $password   = $input['password'] ?? '';
 
-if ($fullname === '' || $username === '' || $email === '' || $department === '' || $password === '') {
+if ($fullname === '' || $username === '' || $department === '' || $password === '') {
     http_response_code(400);
     die(json_encode(['error' => 'Please fill in all fields.']));
 }
-if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+// Email is optional — department accounts are shared and don't have a
+// real inbox, so only bother validating it if one was actually provided.
+if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
     http_response_code(400);
     die(json_encode(['error' => 'Please enter a valid email address.']));
 }
@@ -50,11 +52,13 @@ if ($stmt->fetch()) {
     die(json_encode(['error' => 'This username is already taken.']));
 }
 
-$stmt = $pdo->prepare('SELECT id FROM users WHERE email = ?');
-$stmt->execute([$email]);
-if ($stmt->fetch()) {
-    http_response_code(409);
-    die(json_encode(['error' => 'This email is already registered.']));
+if ($email !== '') {
+    $stmt = $pdo->prepare('SELECT id FROM users WHERE email = ?');
+    $stmt->execute([$email]);
+    if ($stmt->fetch()) {
+        http_response_code(409);
+        die(json_encode(['error' => 'This email is already registered.']));
+    }
 }
 
 $hash = password_hash($password, PASSWORD_DEFAULT);
@@ -62,7 +66,7 @@ $hash = password_hash($password, PASSWORD_DEFAULT);
 $stmt = $pdo->prepare(
     'INSERT INTO users (fullname, username, email, password_hash, department, is_active) VALUES (?, ?, ?, ?, ?, 1)'
 );
-$stmt->execute([$fullname, $username, $email, $hash, $department]);
+$stmt->execute([$fullname, $username, $email !== '' ? $email : null, $hash, $department]);
 
 $stmt = $pdo->prepare('SELECT id, fullname, username, department, is_active, created_at AS createdAt FROM users WHERE id = ?');
 $stmt->execute([$pdo->lastInsertId()]);
