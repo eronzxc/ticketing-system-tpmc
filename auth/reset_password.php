@@ -1,4 +1,7 @@
 <?php
+ini_set('display_errors', '0');
+error_reporting(E_ALL);
+
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/session.php';
 
@@ -8,12 +11,12 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $input = json_decode(file_get_contents('php://input'), true) ?? [];
-$email    = trim($input['email'] ?? '');
+$username = trim($input['username'] ?? '');
 $code     = trim($input['code'] ?? '');
 $password = $input['password'] ?? '';
 $confirm  = $input['confirmPassword'] ?? '';
 
-if ($email === '' || $code === '' || $password === '') {
+if ($username === '' || $code === '' || $password === '') {
     http_response_code(400);
     die(json_encode(['error' => 'Please fill in all fields.']));
 }
@@ -26,8 +29,8 @@ if ($password !== $confirm) {
     die(json_encode(['error' => 'Password and confirm password do not match.']));
 }
 
-$stmt = $pdo->prepare('SELECT id, reset_code, reset_code_expires FROM users WHERE email = ?');
-$stmt->execute([$email]);
+$stmt = $pdo->prepare('SELECT id, reset_code, reset_code_expires FROM users WHERE username = ?');
+$stmt->execute([$username]);
 $user = $stmt->fetch();
 
 if (!$user || $user['reset_code'] === null) {

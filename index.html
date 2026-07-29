@@ -956,10 +956,10 @@
       </div>
       <div class="modal-body">
         <div id="fpStep1">
-          <p class="sub" style="margin-bottom:12px;">Enter the email address on your account. We'll generate a reset code for it.</p>
+          <p class="sub" style="margin-bottom:12px;">Enter your account's username. If it's an IT account, we'll email a reset code to the address on file.</p>
           <div class="field">
-            <label>Email</label>
-            <input type="email" id="fp_email" placeholder="you@example.com">
+            <label>Username</label>
+            <input id="fp_username" placeholder="Your username">
           </div>
           <p class="err hidden" id="fpStep1Error"></p>
         </div>
@@ -1095,7 +1095,7 @@
   </div>
 
   <div id="deletedView" class="modal-overlay hidden">
-    <div class="modal-card" style="max-width:900px;">
+    <div class="modal-card" style="max-width:1150px;">
       <div class="modal-header">
         <h2>Recently deleted tickets</h2>
         <button class="ticket-detail-close" onclick="closeDeletedModal()">✕</button>
@@ -1109,7 +1109,6 @@
                 <th>ID</th>
                 <th>Summary</th>
                 <th>Requester</th>
-                <th>Department</th>
                 <th>Deleted at</th>
                 <th>Deleted by</th>
                 <th>Purges in</th>
@@ -1495,11 +1494,12 @@ function showLogin() {
   document.getElementById('loginForm').classList.remove('hidden');
 }
 
-let resetEmail = null;
+let resetUsername = null;
 
 function openForgotPassword() {
-  resetEmail = null;
-  document.getElementById('fp_email').value = '';
+  resetUsername = null;
+  const loginUsername = document.getElementById('login_username').value.trim();
+  document.getElementById('fp_username').value = loginUsername;
   document.getElementById('fp_code').value = '';
   document.getElementById('fp_password').value = '';
   document.getElementById('fp_password2').value = '';
@@ -1517,12 +1517,12 @@ function closeForgotPassword() {
 }
 
 async function requestResetCode() {
-  const email = document.getElementById('fp_email').value.trim().toLowerCase();
+  const username = document.getElementById('fp_username').value.trim().toLowerCase();
   const errEl = document.getElementById('fpStep1Error');
   const btn = document.getElementById('fpStep1Btn');
 
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    errEl.textContent = 'Please enter a valid email address.';
+  if (!username) {
+    errEl.textContent = 'Please enter your username.';
     errEl.classList.remove('hidden');
     return;
   }
@@ -1534,7 +1534,7 @@ async function requestResetCode() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ email })
+      body: JSON.stringify({ username })
     });
     const data = await res.json();
     if (!res.ok) {
@@ -1542,10 +1542,10 @@ async function requestResetCode() {
       errEl.classList.remove('hidden');
       return;
     }
-    resetEmail = email;
-    document.getElementById('fpStep2Msg').innerHTML =
-      `We've sent a 6-digit reset code to <strong>${escapeHTML(email)}</strong>. ` +
-      `Check your inbox (and spam folder) — the code is valid for 15 minutes.`;
+    resetUsername = username;
+    document.getElementById('fpStep2Msg').innerHTML = data.email_hint
+      ? `We've sent a 6-digit reset code to <strong>${escapeHTML(data.email_hint)}</strong>. Check your inbox (and spam folder) — the code is valid for 15 minutes.`
+      : `If that username has an email on file, we've sent a 6-digit reset code to it. Check your inbox (and spam folder) — the code is valid for 15 minutes.`;
     document.getElementById('fpStep1').classList.add('hidden');
     document.getElementById('fpStep2').classList.remove('hidden');
     document.getElementById('fpStep1Btn').classList.add('hidden');
@@ -1588,7 +1588,7 @@ async function submitPasswordReset() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ email: resetEmail, code, password, confirmPassword: password2 })
+      body: JSON.stringify({ username: resetUsername, code, password, confirmPassword: password2 })
     });
     const data = await res.json();
     if (!res.ok) {
@@ -3178,7 +3178,7 @@ function renderTicketDetail(id) {
 async function openDeletedModal() {
   if (!isIT()) return;
   document.getElementById('deletedError').classList.add('hidden');
-  document.getElementById('deletedTableBody').innerHTML = `<tr><td colspan="8" class="center-msg">Loading...</td></tr>`;
+  document.getElementById('deletedTableBody').innerHTML = `<tr><td colspan="7" class="center-msg">Loading...</td></tr>`;
   document.getElementById('deletedView').classList.remove('hidden');
   await loadDeletedTickets();
 }
@@ -3211,7 +3211,7 @@ async function loadDeletedTickets() {
 function renderDeletedTable(rows) {
   const body = document.getElementById('deletedTableBody');
   if (!rows.length) {
-    body.innerHTML = `<tr><td colspan="8" class="center-msg">No deleted tickets.</td></tr>`;
+    body.innerHTML = `<tr><td colspan="7" class="center-msg">No deleted tickets.</td></tr>`;
     return;
   }
   body.innerHTML = rows.map(row => {
@@ -3230,11 +3230,10 @@ function renderDeletedTable(rows) {
         <td class="td-id">${escapeHTML(t.id)}</td>
         <td class="td-summary">${escapeHTML(summaryOf(t))}</td>
         <td>${escapeHTML(t.requester||'')}</td>
-        <td>${escapeHTML(t.department||'')}</td>
         <td>${deletedAtStr}</td>
         <td>${deletedBy}</td>
         <td>${daysLeftStr}</td>
-        <td style="white-space:nowrap;">
+        <td style="white-space:nowrap;max-width:none;overflow:visible;">
           <button class="btn-secondary" style="width:auto;padding:6px 12px;font-size:12px;" onclick="restoreTicket('${t.id}')">↺ Restore</button>
           <button class="danger" style="width:auto;padding:6px 12px;font-size:12px;border:none;border-radius:8px;background:#c0392b;color:#fff;cursor:pointer;margin-left:6px;" onclick="purgeTicket('${t.id}')">Delete permanently</button>
         </td>

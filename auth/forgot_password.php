@@ -1,4 +1,7 @@
 <?php
+ini_set('display_errors', '0');
+error_reporting(E_ALL);
+
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/session.php';
 require_once __DIR__ . '/../config/mailer.php';
@@ -9,22 +12,22 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $input = json_decode(file_get_contents('php://input'), true) ?? [];
-$email = trim($input['email'] ?? '');
+$username = trim($input['username'] ?? '');
 
-if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+if ($username === '') {
     http_response_code(400);
-    die(json_encode(['error' => 'Please enter a valid email address.']));
+    die(json_encode(['error' => 'Please enter your username.']));
 }
 
-$stmt = $pdo->prepare('SELECT id, fullname, email, department FROM users WHERE email = ?');
-$stmt->execute([$email]);
+$stmt = $pdo->prepare('SELECT id, fullname, email, department FROM users WHERE username = ?');
+$stmt->execute([$username]);
 $user = $stmt->fetch();
 
-// Generic response regardless of whether the email matched an account —
-// avoids leaking which emails are registered (account enumeration).
+// Generic response regardless of whether the username matched an account —
+// avoids leaking which usernames are registered (account enumeration).
 $genericResponse = [
     'success' => true,
-    'message' => 'If that email is registered, we\'ve sent a reset code to it.',
+    'message' => 'If that account is eligible for self-service reset, we\'ve sent a reset code to the email on file.',
 ];
 
 if (!$user) {
@@ -41,6 +44,11 @@ if (!$user) {
 if ($user['department'] !== 'IT Department') {
     http_response_code(400);
     die(json_encode(['error' => 'This account\'s password can only be reset by IT. Please contact the IT Department directly.']));
+}
+
+if (empty($user['email'])) {
+    http_response_code(400);
+    die(json_encode(['error' => 'This account has no email on file, so self-service reset isn\'t available. Ask another IT staff member to reset your password from Manage Users instead.']));
 }
 
 $code = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
@@ -67,4 +75,15 @@ if (!$sent) {
     die(json_encode(['error' => 'We could not send the reset email right now. Please try again later or contact IT directly.']));
 }
 
+$genericResponse['email_hint'] = maskEmail($user['email']);
+
 echo json_encode($genericResponse);
+
+function maskEmail(string $email): string {
+    $parts = explode('@', $email);
+    if (count($parts) !== 2) return $email;
+    [$local, $domain] = $parts;
+    $visible = min(2, strlen($local));
+    $masked = substr($local, 0, $visible) . str_repeat('*', max(1, strlen($local) - $visible));
+    return $masked . '@' . $domain;
+}
