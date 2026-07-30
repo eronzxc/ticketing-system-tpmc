@@ -4,6 +4,7 @@ error_reporting(E_ALL);
 
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/session.php';
+require_once __DIR__ . '/../config/department_helper.php';
 
 requireIT();
 
@@ -16,7 +17,7 @@ $input = json_decode(file_get_contents('php://input'), true) ?? [];
 $targetId = isset($input['user_id']) ? (int)$input['user_id'] : 0;
 $fullname = trim($input['fullname'] ?? '');
 $username = trim($input['username'] ?? '');
-$department = trim($input['department'] ?? '');
+$department = canonicalizeDepartment($pdo, trim($input['department'] ?? ''));
 $password = $input['password'] ?? '';
 
 if ($targetId <= 0 || $fullname === '' || $username === '' || $department === '') {
