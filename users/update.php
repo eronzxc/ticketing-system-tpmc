@@ -24,9 +24,9 @@ if ($targetId <= 0 || $fullname === '' || $username === '' || $department === ''
     http_response_code(400);
     die(json_encode(['error' => 'user_id, fullname, username, and department are required.']));
 }
-if ($password !== '' && strlen($password) < 6) {
+if ($password !== '' && strlen($password) < 2) {
     http_response_code(400);
-    die(json_encode(['error' => 'New password must be at least 6 characters.']));
+    die(json_encode(['error' => 'New password must be at least 2 characters.']));
 }
 
 $stmt = $pdo->prepare('SELECT id FROM users WHERE id = ?');
