@@ -3431,6 +3431,7 @@ async function submitAddUser() {
   }
   closeAddUserModal();
   await loadUsers();
+  await loadDepartments();
 }
 
 let pendingDeletePerm = null; // { id, fullname, nextAllow }
@@ -3707,6 +3708,7 @@ async function saveEditUser() {
   errEl.classList.add('hidden');
   closeEditUserModal();
   await loadUsers();
+  await loadDepartments();
   // If the edited account is the currently logged-in user, refresh their header display too.
   if (currentUser && Number(userId) === Number(currentUser.id)) {
     currentUser.fullname = fullname;
@@ -3761,6 +3763,7 @@ async function confirmToggleUser() {
   }
   closeToggleUserModal();
   await loadUsers();
+  await loadDepartments();
 }
 
 function openDeleteUserModal(userId) {
@@ -3801,6 +3804,7 @@ async function confirmDeleteUser() {
   }
   closeDeleteUserModal();
   await loadUsers();
+  await loadDepartments();
 }
 
 

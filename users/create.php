@@ -65,7 +65,7 @@ if ($email !== '') {
 $hash = password_hash($password, PASSWORD_DEFAULT);
 
 $stmt = $pdo->prepare(
-    'INSERT INTO users (fullname, username, email, password_hash, department, is_active) VALUES (?, ?, ?, ?, ?, 1)'
+    'INSERT INTO users (fullname, username, email, password_hash, department, is_active, can_delete_tickets) VALUES (?, ?, ?, ?, ?, 1, 0)'
 );
 $stmt->execute([$fullname, $username, $email !== '' ? $email : null, $hash, $department]);
 
