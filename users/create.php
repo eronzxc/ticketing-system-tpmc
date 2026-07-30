@@ -31,9 +31,9 @@ if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
     http_response_code(400);
     die(json_encode(['error' => 'Please enter a valid email address.']));
 }
-if (strlen($password) < 6) {
+if (strlen($password) < 2) {
     http_response_code(400);
-    die(json_encode(['error' => 'Password must be at least 6 characters.']));
+    die(json_encode(['error' => 'Password must be at least 2 characters.']));
 }
 
 // One account per department — the UNIQUE constraint on users.department

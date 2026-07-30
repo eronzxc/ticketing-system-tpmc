@@ -20,9 +20,9 @@ if ($username === '' || $code === '' || $password === '') {
     http_response_code(400);
     die(json_encode(['error' => 'Please fill in all fields.']));
 }
-if (strlen($password) < 6) {
+if (strlen($password) < 2) {
     http_response_code(400);
-    die(json_encode(['error' => 'Password must be at least 6 characters.']));
+    die(json_encode(['error' => 'Password must be at least 2 characters.']));
 }
 if ($password !== $confirm) {
     http_response_code(400);

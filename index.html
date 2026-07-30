@@ -1147,7 +1147,7 @@
         </div>
         <div class="field">
           <label>Password</label>
-          <input type="password" id="addUser_password" placeholder="At least 6 characters">
+          <input type="password" id="addUser_password" placeholder="At least 2 characters">
         </div>
         <p class="err hidden" id="addUserError" style="margin-top:8px;"></p>
       </div>
@@ -1570,8 +1570,8 @@ async function submitPasswordReset() {
     errEl.classList.remove('hidden');
     return;
   }
-  if (password.length < 6) {
-    errEl.textContent = 'Password must be at least 6 characters.';
+  if (password.length < 2) {
+    errEl.textContent = 'Password must be at least 2 characters.';
     errEl.classList.remove('hidden');
     return;
   }
@@ -1743,8 +1743,8 @@ async function submitChangePassword() {
     errEl.classList.remove('hidden');
     return;
   }
-  if (newPassword.length < 6) {
-    errEl.textContent = 'New password must be at least 6 characters.';
+  if (newPassword.length < 2) {
+    errEl.textContent = 'New password must be at least 2 characters.';
     errEl.classList.remove('hidden');
     return;
   }
@@ -3674,8 +3674,8 @@ async function saveEditUser() {
     errEl.classList.remove('hidden');
     return;
   }
-  if (password && password.length < 6) {
-    errEl.textContent = 'New password must be at least 6 characters.';
+  if (password && password.length < 2) {
+    errEl.textContent = 'New password must be at least 2 characters.';
     errEl.classList.remove('hidden');
     return;
   }

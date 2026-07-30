@@ -22,9 +22,9 @@ if ($currentPassword === '' || $newPassword === '') {
     die(json_encode(['error' => 'Current password and new password are required.']));
 }
 
-if (strlen($newPassword) < 6) {
+if (strlen($newPassword) < 2) {
     http_response_code(400);
-    die(json_encode(['error' => 'New password must be at least 6 characters.']));
+    die(json_encode(['error' => 'New password must be at least 2 characters.']));
 }
 
 if ($newPassword !== $confirmNewPassword) {
