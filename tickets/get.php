@@ -13,12 +13,7 @@ if ($id === '') {
     die(json_encode(['error' => 'Ticket ID is required.']));
 }
 
-$stmt = $pdo->prepare(
-    'SELECT t.*, u.fullname AS assigned_to_name
-     FROM tickets t
-     LEFT JOIN users u ON u.id = t.assigned_to
-     WHERE t.id = ?'
-);
+$stmt = $pdo->prepare('SELECT * FROM tickets WHERE id = ?');
 $stmt->execute([$id]);
 $ticket = $stmt->fetch();
 

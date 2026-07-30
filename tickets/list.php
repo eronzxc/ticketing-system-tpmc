@@ -5,11 +5,9 @@ require_once __DIR__ . '/../config/session.php';
 requireLogin();
 
 $stmt = $pdo->query(
-    'SELECT t.*, u.fullname AS assigned_to_name
-     FROM tickets t
-     LEFT JOIN users u ON u.id = t.assigned_to
-     WHERE t.deleted_at IS NULL
-     ORDER BY t.created_at DESC'
+    'SELECT * FROM tickets
+     WHERE deleted_at IS NULL
+     ORDER BY created_at DESC'
 );
 $rows = $stmt->fetchAll();
 

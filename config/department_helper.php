@@ -27,7 +27,7 @@ function canonicalizeDepartment(PDO $pdo, string $department): string {
     }
 
     // Fast path: exact match already exists, nothing to normalize.
-    $stmt = $pdo->prepare('SELECT department FROM users WHERE department = ? LIMIT 1');
+    $stmt = $pdo->prepare('SELECT name FROM departments WHERE name = ? LIMIT 1');
     $stmt->execute([$department]);
     $exact = $stmt->fetchColumn();
     if ($exact !== false) {
@@ -35,7 +35,7 @@ function canonicalizeDepartment(PDO $pdo, string $department): string {
     }
 
     // Case-insensitive fallback: correct casing typos against what already exists.
-    $stmt = $pdo->query('SELECT DISTINCT department FROM users');
+    $stmt = $pdo->query('SELECT name FROM departments');
     $existing = $stmt->fetchAll(PDO::FETCH_COLUMN);
     foreach ($existing as $d) {
         if (strcasecmp($d, $department) === 0) {
@@ -43,6 +43,13 @@ function canonicalizeDepartment(PDO $pdo, string $department): string {
         }
     }
 
-    // No match at all — this is a genuinely new department, keep as typed.
+    // No match at all — this is a genuinely new department. Register it
+    // in the departments table too (not just on this user's row), so it
+    // actually shows up in departments/list.php and the account-creation
+    // suggestions going forward — otherwise it would only "exist" on this
+    // one account and nowhere else in the system.
+    $stmt = $pdo->prepare('INSERT IGNORE INTO departments (name) VALUES (?)');
+    $stmt->execute([$department]);
+
     return $department;
 }

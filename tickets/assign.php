@@ -12,17 +12,20 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $input = json_decode(file_get_contents('php://input'), true) ?? [];
 $id = $input['id'] ?? '';
-// assigned_to can be an IT user id, or null/0 to unassign.
-$assignedTo = isset($input['assigned_to']) && $input['assigned_to'] !== null && $input['assigned_to'] !== ''
-    ? (int)$input['assigned_to']
-    : null;
+
+// assigned_it_staff is a name from the it_staff list (or null/blank to
+// mean "IT Department, no specific technician yet"). Not tied to a login
+// account anymore — the IT Department account is shared, so there's no
+// single "assignee user" to point to. See migration_11 for context.
+$assignedItStaff = trim($input['assigned_it_staff'] ?? '');
+$assignedItStaff = $assignedItStaff !== '' ? $assignedItStaff : null;
 
 if ($id === '') {
     http_response_code(400);
     die(json_encode(['error' => 'Ticket ID is required.']));
 }
 
-$stmt = $pdo->prepare('SELECT id, assigned_to FROM tickets WHERE id = ? AND deleted_at IS NULL');
+$stmt = $pdo->prepare('SELECT id, assigned_it_staff FROM tickets WHERE id = ? AND deleted_at IS NULL');
 $stmt->execute([$id]);
 $ticket = $stmt->fetch();
 
@@ -31,37 +34,21 @@ if (!$ticket) {
     die(json_encode(['error' => 'Ticket not found.']));
 }
 
-// If assigning (not unassigning), the target must be an active IT Department user.
-if ($assignedTo !== null) {
-    $stmt = $pdo->prepare("SELECT id, fullname FROM users WHERE id = ? AND department = 'IT Department' AND is_active = 1");
-    $stmt->execute([$assignedTo]);
-    $targetUser = $stmt->fetch();
-    if (!$targetUser) {
-        http_response_code(400);
-        die(json_encode(['error' => 'Can only assign to an active IT Department staff member.']));
-    }
+$previousAssignee = $ticket['assigned_it_staff'];
+
+$stmt = $pdo->prepare('UPDATE tickets SET assigned_it_staff = ?, updated_at = NOW() WHERE id = ?');
+$stmt->execute([$assignedItStaff, $id]);
+
+// Notify the whole IT Department account (not a specific person — nobody
+// has their own login to notify) whenever a name is newly set or changed,
+// so whoever is using the shared account next sees it as a reminder.
+if ($assignedItStaff !== null && $assignedItStaff !== $previousAssignee) {
+    $actingUser = currentUser();
+    $message = "Ticket $id was assigned to $assignedItStaff by {$actingUser['fullname']}.";
+    notifyIT($pdo, $id, 'assigned', $message);
 }
 
-$stmt = $pdo->prepare('UPDATE tickets SET assigned_to = ?, updated_at = NOW() WHERE id = ?');
-$stmt->execute([$assignedTo, $id]);
-
-$actingUser = currentUser();
-
-// Only notify if it's actually a new assignment to someone (not unassigning,
-// and not re-notifying the exact same person who already had it).
-if ($assignedTo !== null && $assignedTo !== (int)($ticket['assigned_to'] ?? 0)) {
-    $message = ($assignedTo === (int)$actingUser['id'])
-        ? "You claimed ticket $id."
-        : "Ticket $id was assigned to you by {$actingUser['fullname']}.";
-    notifyUser($pdo, $assignedTo, $id, 'assigned', $message);
-}
-
-$stmt = $pdo->prepare(
-    'SELECT t.*, u.fullname AS assigned_to_name
-     FROM tickets t
-     LEFT JOIN users u ON u.id = t.assigned_to
-     WHERE t.id = ?'
-);
+$stmt = $pdo->prepare('SELECT * FROM tickets WHERE id = ?');
 $stmt->execute([$id]);
 $ticket = $stmt->fetch();
 $ticket['attachments'] = $ticket['attachments_json'] ? json_decode($ticket['attachments_json'], true) : [];

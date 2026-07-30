@@ -1668,7 +1668,7 @@ function enterDashboard(user) {
   loadTickets();
   loadNotifications();
   loadDepartments();
-  if (isIT()) { loadITStaffList(); loadITStaffNames(); }
+  if (isIT()) { loadITStaffNames(); }
   if (notifPollInterval) clearInterval(notifPollInterval);
   notifPollInterval = setInterval(loadNotifications, 20000);
 }
@@ -1862,8 +1862,7 @@ function normalizeTicket(t) {
     resolvedAt: t.resolved_at || t.resolvedAt || null,
     resolvedBy: t.resolved_by || t.resolvedBy || null,
     remarks: t.remarks || '',
-    assignedTo: (t.assigned_to !== undefined ? t.assigned_to : (t.assignedTo !== undefined ? t.assignedTo : null)),
-    assignedToName: t.assigned_to_name || t.assignedToName || null,
+    assignedItStaff: t.assigned_it_staff || t.assignedItStaff || null,
     attachments: t.attachments || [],
     comments: t.comments || []
   };
@@ -1882,23 +1881,11 @@ async function loadTickets() {
 
 let notifPollInterval = null;
 let notifications = [];
-let itStaffList = [];
 
-async function loadITStaffList() {
-  try {
-    const res = await fetch(`${API_USERS}/list.php`, { credentials: 'include' });
-    const data = await res.json();
-    itStaffList = (data.users || []).filter(u => u.department === 'IT Department' && u.is_active);
-  } catch (e) {
-    itStaffList = [];
-  }
-}
-
-// Separate from itStaffList above (which is login accounts, used for
-// "Assigned to"). itStaffNames is a plain, independently-managed list of
-// named technicians used only for "Resolved by", so IT can record who
-// specifically closed a ticket without that person needing their own
-// login account.
+// Independently-managed list of named technicians (it_staff table, not
+// login accounts) used for both "Resolved by" and "Assigned to" — so IT
+// can record who specifically is handling/closed a ticket without that
+// person needing their own login account (the IT Department login is shared).
 let itStaffNames = [];
 
 async function loadITStaffNames() {
@@ -2951,13 +2938,13 @@ async function deleteTicket(id) {
   renderTickets();
 }
 
-async function assignTicket(id, assignedTo) {
+async function assignTicket(id, assignedItStaff) {
   try {
     const res = await fetch(`${API_TICKETS}/assign.php`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ id, assigned_to: assignedTo || null })
+      body: JSON.stringify({ id, assigned_it_staff: assignedItStaff || null })
     });
     const data = await res.json();
     if (!res.ok) {
@@ -3115,16 +3102,19 @@ function renderTicketDetail(id) {
         <label>Assigned to</label>
         ${
           isIT()
-            ? `<select id="assignSelect_${t.id}" onchange="assignTicket('${t.id}', this.value)" style="width:100%;margin-top:4px;">
+            ? (() => {
+                const activeNames = itStaffNames.filter(s => s.isActive).map(s => s.fullName);
+                const optionNames = [...activeNames];
+                // Keep the ticket's already-saved name selectable even if
+                // that staff entry was later deactivated/renamed, so we
+                // don't silently lose existing assignment data.
+                if (t.assignedItStaff && !optionNames.includes(t.assignedItStaff)) optionNames.unshift(t.assignedItStaff);
+                return `<select id="assignSelect_${t.id}" onchange="assignTicket('${t.id}', this.value)" style="width:100%;margin-top:4px;">
                 <option value="">— Unassigned —</option>
-                ${itStaffList.map(u => `<option value="${u.id}" ${Number(t.assignedTo)===Number(u.id)?'selected':''}>${escapeHTML(u.fullname)}${currentUser && Number(u.id)===Number(currentUser.id)?' (You)':''}</option>`).join('')}
-              </select>
-              ${
-                currentUser && Number(t.assignedTo) !== Number(currentUser.id)
-                  ? `<button type="button" class="btn-secondary" style="width:auto;margin-top:6px;padding:2px 10px;font-size:12px;" onclick="assignTicket('${t.id}', ${currentUser.id})">Claim this ticket</button>`
-                  : ``
-              }`
-            : `<div class="side-value">${t.assignedToName ? escapeHTML(t.assignedToName) : '— Unassigned —'}</div>`
+                ${optionNames.map(name => `<option value="${escapeHTML(name)}" ${t.assignedItStaff===name?'selected':''}>${escapeHTML(name)}</option>`).join('')}
+              </select>`;
+              })()
+            : `<div class="side-value">${t.assignedItStaff ? escapeHTML(t.assignedItStaff) : '— Unassigned —'}</div>`
         }
       </div>
       <div class="side-field">
@@ -3351,7 +3341,7 @@ async function showUsersPage() {
   await loadDepartments();
 }
 
-let allDepartments = []; // list of department name strings, derived from active accounts
+let allDepartments = []; // list of department name strings, from the departments table (see migration_10)
 
 async function loadDepartments() {
   try {

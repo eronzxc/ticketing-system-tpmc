@@ -9,11 +9,10 @@ require_once __DIR__ . '/../config/session.php';
 // when submitting a ticket, not just IT — so requireLogin() only.
 requireLogin();
 
-// Departments are derived from active accounts, not a separate table:
-// a department only shows up here if someone can actually log in as that
-// department to submit tickets. Disabling an account automatically hides
-// it here too; re-enabling brings it back.
-$stmt = $pdo->query("SELECT DISTINCT department FROM users WHERE is_active = 1 ORDER BY department ASC");
+// Departments now live in their own table (see migration_10), managed by
+// IT independently of login accounts — so a department can exist (and be
+// selectable) even before any account has been created for it yet.
+$stmt = $pdo->query("SELECT name FROM departments WHERE is_active = 1 ORDER BY name ASC");
 $departments = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
 echo json_encode(['departments' => $departments]);
