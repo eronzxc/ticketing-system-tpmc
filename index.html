@@ -393,21 +393,6 @@
   }
   .status-actions button.current { opacity: 0.5; cursor: default; }
   .filters { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
-  #bulkActionBar {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    background: var(--surface-2, #f4f4f5);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 10px 14px;
-    margin-bottom: 10px;
-  }
-  #bulkActionBar .bulk-count { font-weight: 600; font-size: 14px; }
-  #bulkActionBar select { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); }
-  #bulkActionBar .bulk-error { color: #c0392b; font-size: 13px; }
-  .th-bulk-checkbox, .td-bulk-checkbox { width: 32px; text-align: center; }
   .filters input#searchInput { flex: 1 1 220px; min-width: 180px; }
   .filters select { flex: 0 0 auto; width: 160px; min-width: 0; }
   .filters select#dateRangeFilter { width: 190px; }
@@ -1369,12 +1354,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
         </button>
       </div>
-      <div id="bulkActionBar" class="hidden"></div>
       <div class="ticket-table-wrap">
         <table class="ticket-table">
           <thead>
             <tr>
-              <th class="th-bulk-checkbox hidden" id="th-bulk-checkbox"><input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this.checked)"></th>
               <th id="th-id" class="sortable-th" onclick="toggleSort('id')">ID<span class="sort-arrow" id="arrow-id"></span></th>
               <th>Summary</th>
               <th>Requester</th>
@@ -2788,11 +2771,9 @@ function renderTickets() {
   const sorted = applySort(filtered);
   lastFilteredTickets = sorted;
 
-  document.getElementById('th-bulk-checkbox').classList.toggle('hidden', !isIT());
   // Selection shouldn't silently keep tickets that scrolled out of view
   // due to filtering (e.g. picking a different status filter) — trim it
-  // down to whatever's still visible so "select all" / the action bar
-  // count stay honest.
+  // down to whatever's still visible so the action bar count stays honest.
   const visibleIds = new Set(sorted.map(t => t.id));
   bulkSelectedIds.forEach(id => { if (!visibleIds.has(id)) bulkSelectedIds.delete(id); });
 
@@ -2807,8 +2788,7 @@ function renderTickets() {
       const isOverdue = t.dueDate && t.status !== 'Resolved' && new Date(t.dueDate).getTime() < Date.now();
       const dueStr = t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-PH',{month:'numeric',day:'numeric',year:'2-digit'}) : '';
       return `
-        <tr class="${t.id===selectedTicketId?'row-selected':''}" onclick="selectTicketRow('${t.id}')" oncontextmenu="showRowContextMenu(event, '${t.id}'); return false;" ontouchstart="handleRowTouchStart(event, '${t.id}')" ontouchmove="handleRowTouchMove(event)" ontouchend="handleRowTouchEnd(event)" ontouchcancel="clearTimeout(touchTimer)">
-          ${isIT() ? `<td class="td-bulk-checkbox" onclick="event.stopPropagation()"><input type="checkbox" ${bulkSelectedIds.has(t.id)?'checked':''} onchange="toggleBulkSelect('${t.id}', this.checked)"></td>` : ``}
+        <tr class="${(t.id===selectedTicketId || bulkSelectedIds.has(t.id))?'row-selected':''}" onclick="handleRowClick(event, '${t.id}')" oncontextmenu="showRowContextMenu(event, '${t.id}'); return false;" ontouchstart="handleRowTouchStart(event, '${t.id}')" ontouchmove="handleRowTouchMove(event)" ontouchend="handleRowTouchEnd(event)" ontouchcancel="clearTimeout(touchTimer)">
           <td class="td-id">${t.id}</td>
           <td class="td-summary">${escapeHTML(summaryOf(t))}</td>
           <td>${escapeHTML(t.requester||'')}</td>
@@ -2833,7 +2813,6 @@ function renderTickets() {
     closeTicketDetail();
   }
 
-  renderBulkActionBar();
 }
 
 // ===== Bulk actions (IT only) =====
@@ -2841,58 +2820,69 @@ function renderTickets() {
 // one-by-one, e.g. clearing out a batch of resolved tickets or marking
 // a whole group as "In progress" together.
 let bulkSelectedIds = new Set();
+let bulkAnchorId = null;
 
-function toggleBulkSelect(id, checked) {
-  if (checked) bulkSelectedIds.add(id); else bulkSelectedIds.delete(id);
-  renderBulkActionBar();
-  // Keep the header "select all" checkbox in sync (checked only if every
-  // visible row is now selected).
-  const allCb = document.getElementById('selectAllCheckbox');
-  if (allCb) allCb.checked = lastFilteredTickets.length > 0 && lastFilteredTickets.every(t => bulkSelectedIds.has(t.id));
-}
+// Mirrors file-explorer selection: plain click selects just this row
+// (and clears any multi-selection); Ctrl/Cmd+click toggles this row in/out
+// of the selection; Shift+click selects the whole range between the last
+// clicked row and this one. Only IT sees the bulk action bar, but the
+// selection mechanics work the same for everyone (harmless if unused).
+function handleRowClick(evt, id) {
+  focusedTicketIndex = lastFilteredTickets.findIndex(t => t.id === id);
+  bulkAnchorId = id;
 
-function toggleSelectAll(checked) {
-  if (checked) {
-    lastFilteredTickets.forEach(t => bulkSelectedIds.add(t.id));
+  // Plain click only now — selecting multiple tickets is done via
+  // Ctrl+Shift+ArrowUp/Down (see the keydown listener below), same as
+  // Windows File Explorer. Clicking the already-selected row again
+  // clears the selection entirely.
+  if (selectedTicketId === id) {
+    selectedTicketId = null;
+    bulkSelectedIds.clear();
   } else {
-    lastFilteredTickets.forEach(t => bulkSelectedIds.delete(t.id));
+    selectedTicketId = id;
+    bulkSelectedIds = new Set([id]);
   }
   renderTickets();
 }
 
 function clearBulkSelection() {
   bulkSelectedIds.clear();
+  bulkAnchorId = null;
+  selectedTicketId = null;
   renderTickets();
 }
 
-function renderBulkActionBar() {
-  const bar = document.getElementById('bulkActionBar');
-  const count = bulkSelectedIds.size;
-  if (!isIT() || count === 0) {
-    bar.classList.add('hidden');
-    bar.innerHTML = '';
-    return;
-  }
-  bar.classList.remove('hidden');
-  bar.innerHTML = `
-    <span class="bulk-count">${count} ticket${count === 1 ? '' : 's'} selected</span>
-    <select id="bulkStatusSelect">
-      <option value="Open">Open</option>
-      <option value="In progress">In progress</option>
-      <option value="Resolved">Resolved</option>
-    </select>
-    <button type="button" class="btn-secondary" onclick="bulkChangeStatus()">Change status</button>
-    <button type="button" class="danger" style="width:auto;padding:6px 12px;" onclick="confirmBulkDelete()">Delete selected</button>
-    <button type="button" class="btn-secondary" onclick="clearBulkSelection()">Clear selection</button>
-    <span class="bulk-error" id="bulkActionError"></span>
-  `;
-}
+let focusedTicketIndex = -1;
 
-async function bulkChangeStatus() {
-  const status = document.getElementById('bulkStatusSelect').value;
+// Ctrl+Shift+ArrowUp/Down extends the selection from the anchor row
+// (the last row that was clicked or reached) up/down by one, same
+// shortcut as Windows File Explorer. Ignored while typing in a
+// text field, search box, etc.
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+  if (!e.ctrlKey || !e.shiftKey) return;
+  const activeTag = (document.activeElement && document.activeElement.tagName) || '';
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag)) return;
+  if (!isIT() || lastFilteredTickets.length === 0) return;
+  if (focusedTicketIndex === -1) return;
+
+  e.preventDefault();
+  const delta = e.key === 'ArrowDown' ? 1 : -1;
+  const newIndex = Math.min(Math.max(focusedTicketIndex + delta, 0), lastFilteredTickets.length - 1);
+  if (!bulkAnchorId) bulkAnchorId = lastFilteredTickets[focusedTicketIndex].id;
+
+  const anchorIndex = lastFilteredTickets.findIndex(t => t.id === bulkAnchorId);
+  const [start, end] = anchorIndex < newIndex ? [anchorIndex, newIndex] : [newIndex, anchorIndex];
+  bulkSelectedIds = new Set(lastFilteredTickets.slice(start, end + 1).map(t => t.id));
+  focusedTicketIndex = newIndex;
+  renderTickets();
+
+  const rows = document.querySelectorAll('#ticketTableBody tr');
+  if (rows[newIndex]) rows[newIndex].scrollIntoView({ block: 'nearest' });
+});
+
+async function bulkChangeStatusTo(status) {
   const ids = Array.from(bulkSelectedIds);
-  const errEl = document.getElementById('bulkActionError');
-  errEl.textContent = '';
   try {
     const res = await fetch(`${API_TICKETS}/bulk_update_status.php`, {
       method: 'POST',
@@ -2902,10 +2892,10 @@ async function bulkChangeStatus() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to update tickets.');
-    bulkSelectedIds.clear();
+    clearBulkSelection();
     await loadTickets();
   } catch (e) {
-    errEl.textContent = e.message || 'Failed to update tickets. Please try again.';
+    alert(e.message || 'Failed to update tickets. Please try again.');
   }
 }
 
@@ -2917,8 +2907,6 @@ function confirmBulkDelete() {
 
 async function bulkDeleteSelected() {
   const ids = Array.from(bulkSelectedIds);
-  const errEl = document.getElementById('bulkActionError');
-  errEl.textContent = '';
   try {
     const res = await fetch(`${API_TICKETS}/bulk_delete.php`, {
       method: 'POST',
@@ -2928,10 +2916,10 @@ async function bulkDeleteSelected() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to delete tickets.');
-    bulkSelectedIds.clear();
+    clearBulkSelection();
     await loadTickets();
   } catch (e) {
-    errEl.textContent = e.message || 'Failed to delete tickets. Please try again.';
+    alert(e.message || 'Failed to delete tickets. Please try again.');
   }
 }
 
@@ -2977,7 +2965,39 @@ function handleRowTouchEnd(evt) {
 
 function showRowContextMenu(evt, id) {
   closeRowContextMenu();
+
+  // If right-clicking a row that's part of an existing multi-selection
+  // (2+ tickets, made via Ctrl+Shift+Arrow), show bulk actions for the
+  // whole selection instead of the single-ticket menu below.
+  if (isIT() && bulkSelectedIds.size > 1 && bulkSelectedIds.has(id)) {
+    const count = bulkSelectedIds.size;
+    const menu = document.createElement('div');
+    menu.className = 'row-context-menu';
+    menu.id = 'rowContextMenu';
+    menu.innerHTML = `
+      <div style="padding:6px 12px;font-size:12px;color:var(--muted,#888);border-bottom:1px solid var(--border);">${count} tickets selected</div>
+      <button onclick="closeRowContextMenu(); bulkChangeStatusTo('Open')">Mark Open</button>
+      <button onclick="closeRowContextMenu(); bulkChangeStatusTo('In progress')">Mark In progress</button>
+      <button onclick="closeRowContextMenu(); bulkChangeStatusTo('Resolved')">Mark Resolved</button>
+      <hr><button class="danger" onclick="closeRowContextMenu(); confirmBulkDelete()">🗑 Delete selected</button>
+      <hr><button onclick="closeRowContextMenu(); clearBulkSelection()">Clear selection</button>
+    `;
+    document.body.appendChild(menu);
+    const x = Math.min(evt.clientX, window.innerWidth - 180);
+    const y = Math.min(evt.clientY, window.innerHeight - 260);
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+    setTimeout(() => { document.addEventListener('click', closeRowContextMenu, { once: true }); }, 0);
+    return;
+  }
+
+  // Right-clicking a row outside the current multi-selection (or when
+  // there is none) falls back to the normal single-ticket menu, and
+  // that row becomes the sole selection — same as File Explorer.
   selectedTicketId = id;
+  bulkAnchorId = id;
+  bulkSelectedIds = new Set([id]);
+  focusedTicketIndex = lastFilteredTickets.findIndex(t => t.id === id);
   renderTickets();
   const t = tickets.find(x => x.id === id);
   const canDelete = t && currentUser && (isIT() || (t.created_by !== null && Number(t.created_by) === Number(currentUser.id)));
