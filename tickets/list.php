@@ -4,12 +4,30 @@ require_once __DIR__ . '/../config/session.php';
 
 requireLogin();
 
-$stmt = $pdo->query(
-    'SELECT * FROM tickets
-     WHERE deleted_at IS NULL
-     ORDER BY created_at DESC'
-);
-$rows = $stmt->fetchAll();
+$user = currentUser();
+$isIT = ($user['department'] ?? '') === 'IT Department';
+
+// IT sees every ticket. Every other department only sees tickets that
+// belong to their own department — not just ones they personally
+// created, so e.g. Accounting sees all "Accounting" tickets even if a
+// different Accounting staff member (or IT, submitting on their behalf)
+// created it.
+if ($isIT) {
+    $stmt = $pdo->query(
+        'SELECT * FROM tickets
+         WHERE deleted_at IS NULL
+         ORDER BY created_at DESC'
+    );
+    $rows = $stmt->fetchAll();
+} else {
+    $stmt = $pdo->prepare(
+        'SELECT * FROM tickets
+         WHERE deleted_at IS NULL AND department = ?
+         ORDER BY created_at DESC'
+    );
+    $stmt->execute([$user['department']]);
+    $rows = $stmt->fetchAll();
+}
 
 $tickets = array_map(function ($row) {
     $row['attachments'] = $row['attachments_json'] ? json_decode($row['attachments_json'], true) : [];

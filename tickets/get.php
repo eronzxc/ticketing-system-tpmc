@@ -22,6 +22,19 @@ if (!$ticket || $ticket['deleted_at'] !== null) {
     die(json_encode(['error' => 'Ticket not found.']));
 }
 
+$user = currentUser();
+$isIT = ($user['department'] ?? '') === 'IT Department';
+
+// Same rule as the list: IT can open any ticket, everyone else only
+// tickets that belong to their own department. Without this, a
+// department account could still view another department's ticket by
+// guessing/typing its ID directly, even though it never shows up in
+// their own list.
+if (!$isIT && $ticket['department'] !== $user['department']) {
+    http_response_code(403);
+    die(json_encode(['error' => 'You do not have access to this ticket.']));
+}
+
 $ticket['attachments'] = $ticket['attachments_json'] ? json_decode($ticket['attachments_json'], true) : [];
 unset($ticket['attachments_json']);
 $ticket['created_by'] = $ticket['created_by'] !== null ? (int)$ticket['created_by'] : null;
