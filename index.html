@@ -395,6 +395,7 @@
   .filters { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
   .filters input#searchInput { flex: 1 1 220px; min-width: 180px; }
   .filters select { flex: 0 0 auto; width: 160px; min-width: 0; }
+  .filters select#statusFilter { width: 185px; }
   .filters select#dateRangeFilter { width: 190px; }
   .date-range-group { display: flex; gap: 8px; flex: 0 0 auto; }
   .date-range-group input[type=date] { width: 150px; flex: 0 0 auto; min-width: 0; }
@@ -426,6 +427,24 @@
   .stat .lbl { font-size: 12px; color: var(--ink-secondary); }
   .pin-box { max-width: 260px; margin: 2rem auto; text-align: center; }
   .pin-box input { text-align: center; letter-spacing: 0.3em; margin-bottom: 8px; }
+  body.login-bg-active {
+    background:
+      linear-gradient(180deg, rgba(10,40,35,0.35), rgba(10,40,35,0.55)),
+      url('assets/images/tpmc-building.png') center 30%/cover no-repeat fixed;
+  }
+  #authGate {
+    background: rgba(255,255,255,0.55);
+    backdrop-filter: blur(8px) saturate(160%);
+    -webkit-backdrop-filter: blur(8px) saturate(160%);
+    border-radius: 16px;
+    padding: 36px 32px;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.28);
+    margin: 8rem auto 3rem;
+    border: 1px solid rgba(255,255,255,0.7);
+  }
+  #authGate .field input {
+    background: rgba(255,255,255,0.85);
+  }
   .err { color: #A32D2D; font-size: 12px; margin: 6px 0; }
   .hidden { display: none; }
   .center-msg { text-align: center; color: var(--ink-muted); font-size: 14px; padding: 2rem 0; }
@@ -746,7 +765,7 @@
   }
 </style>
 </head>
-<body>
+<body class="login-bg-active">
 <header class="topbar">
   <div class="topbar-brand">
     <img src="assets/images/tpmc-logo.png" alt="The Paramount Medical Center">
@@ -1647,6 +1666,7 @@ function initials(fullname) {
 
 function enterDashboard(user) {
   currentUser = { id: user.id, fullname: user.fullname, username: user.username, department: user.department };
+  document.body.classList.remove('login-bg-active');
   document.getElementById('authGate').classList.add('hidden');
   document.getElementById('usersPageView').classList.add('hidden');
   document.getElementById('dashboard').classList.remove('hidden');
@@ -1700,6 +1720,7 @@ async function logout() {
   document.getElementById('dashboard').classList.add('hidden');
   document.getElementById('usersPageView').classList.add('hidden');
   document.getElementById('authGate').classList.remove('hidden');
+  document.body.classList.add('login-bg-active');
   document.getElementById('appSidebar').classList.add('hidden');
   showLogin();
   document.getElementById('login_username').value = '';
@@ -2621,7 +2642,15 @@ function getTicketIdNum(id) {
 
 function toggleSort(column) {
   if (sortColumn === column) {
-    sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+    if (sortDirection === 'asc') {
+      sortDirection = 'desc';
+    } else {
+      // Third click on the same column: clear the sort entirely and
+      // fall back to the default order (newest first), same as before
+      // any column was ever clicked.
+      sortColumn = null;
+      sortDirection = 'asc';
+    }
   } else {
     sortColumn = column;
     sortDirection = 'asc';
