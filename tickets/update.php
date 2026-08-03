@@ -18,12 +18,16 @@ if ($id === '') {
     die(json_encode(['error' => 'Ticket ID is required.']));
 }
 
-// Only these fields can be edited here: Status, Due date, Date resolved,
-// and Remarks. We don't touch the original request (department, category,
-// priority, description) so the requester's submission is never
-// overwritten. Status changes go through this endpoint too (behind a
-// confirmation dialog) so it can't be changed by an accidental click.
+// Editable here: Status, Concern details (description), Due date, Date
+// resolved, and Remarks. Description was originally locked to preserve
+// the requester's exact submission, but IT now needs a way to fix
+// typos/errors in what was reported — so it's editable too, alongside
+// everything else. Department, category, and priority stay locked, since
+// those categorize the request rather than describe it. Status changes
+// go through this endpoint too (behind a confirmation dialog) so it
+// can't be changed by an accidental click.
 $status     = trim($input['status'] ?? '');
+$description = trim($input['description'] ?? '');
 $dueDate    = trim($input['due_date'] ?? '');
 $resolvedAt = trim($input['resolved_at'] ?? '');
 $remarks    = trim($input['remarks'] ?? '');
@@ -32,6 +36,10 @@ $resolvedByInput = trim($input['resolved_by'] ?? '');
 if (!in_array($status, ['Open', 'In progress', 'Resolved'], true)) {
     http_response_code(400);
     die(json_encode(['error' => 'Invalid status.']));
+}
+if ($description === '') {
+    http_response_code(400);
+    die(json_encode(['error' => 'Concern details cannot be empty.']));
 }
 
 $stmt = $pdo->prepare('SELECT status, resolved_at, resolved_by, created_by FROM tickets WHERE id = ?');
@@ -74,9 +82,9 @@ if ($status === 'Resolved') {
 }
 
 $stmt = $pdo->prepare(
-    'UPDATE tickets SET status = ?, due_date = ?, resolved_at = ?, resolved_by = ?, remarks = ?, updated_at = NOW() WHERE id = ?'
+    'UPDATE tickets SET status = ?, description = ?, due_date = ?, resolved_at = ?, resolved_by = ?, remarks = ?, updated_at = NOW() WHERE id = ?'
 );
-$stmt->execute([$status, $dueDateVal, $resolvedAtVal, $resolvedByVal, $remarksVal, $id]);
+$stmt->execute([$status, $description, $dueDateVal, $resolvedAtVal, $resolvedByVal, $remarksVal, $id]);
 
 // Only notify on an actual status change, and only the requester who
 // owns the ticket (not every member of their department).
