@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TPMC IT Concern Desk</title>
+<title>TPMC IT Ticketing System - Concern Desk</title>
 <link rel="icon" type="image/png" href="assets/images/tpmc-logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -40,7 +40,7 @@
     background: var(--surface);
     flex: 0 0 auto;
   }
-  .topbar-brand { display: flex; align-items: center; gap: 14px; }
+  .topbar-brand { display: flex; align-items: center; gap: 14px; cursor: pointer; }
   .topbar-brand img { height: 44px; width: auto; }
   .body-row { display: flex; flex: 1; min-height: 0; overflow: hidden; }
   .sidebar {
@@ -195,6 +195,9 @@
     .topbar { padding: 10px 14px; }
   }
   .wrap { max-width: 1600px; margin: 0 auto; padding: 1.5rem 1.75rem 3rem; flex: 1; min-width: 0; overflow-y: auto; }
+  @media (min-width: 2000px) {
+    .wrap { max-width: min(85vw, 2200px); }
+  }
   header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 12px; }
   h1 { font-size: 22px; font-weight: 600; margin: 0; }
   .sub { font-size: 13px; color: var(--ink-secondary); margin: 4px 0 0; }
@@ -430,17 +433,44 @@
   body.login-bg-active {
     background:
       linear-gradient(180deg, rgba(10,40,35,0.35), rgba(10,40,35,0.55)),
-      url('assets/images/tpmc-building.png') center 30%/cover no-repeat fixed;
+      url('assets/images/tpmc-wallpaper.jpg') center 30%/cover no-repeat fixed;
+  }
+  body.login-bg-active #adminView {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 0;
+  }
+  body.login-bg-active .topbar {
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border-bottom: 1px solid rgba(255,255,255,0.25);
+  }
+  body.login-bg-active .topbar-brand h1,
+  body.login-bg-active .topbar-brand .sub {
+    color: #000;
+  }
+  body.login-bg-active .topbar-brand .sub {
+    color: rgba(0,0,0,0.75);
   }
   #authGate {
-    background: rgba(255,255,255,0.55);
-    backdrop-filter: blur(8px) saturate(160%);
-    -webkit-backdrop-filter: blur(8px) saturate(160%);
+    background: rgba(255,255,255,0.3);
+    backdrop-filter: blur(3px) saturate(160%);
+    -webkit-backdrop-filter: blur(3px) saturate(160%);
     border-radius: 16px;
     padding: 36px 32px;
     box-shadow: 0 16px 40px rgba(0,0,0,0.28);
-    margin: 8rem auto 3rem;
+    margin: 0;
+    width: 100%;
     border: 1px solid rgba(255,255,255,0.7);
+  }
+  /* Scoped to the login card only — the rest of the app reuses these same
+     "label" and ".sub" classes and should keep their normal gray color. */
+  #authGate label,
+  #authGate .sub {
+    color: #fff;
   }
   #authGate .field input {
     background: rgba(255,255,255,0.85);
@@ -767,10 +797,10 @@
 </head>
 <body class="login-bg-active">
 <header class="topbar">
-  <div class="topbar-brand">
+  <div class="topbar-brand" onclick="handleLogoClick()" role="button" tabindex="0" title="Back to dashboard">
     <img src="assets/images/tpmc-logo.png" alt="The Paramount Medical Center">
     <div>
-      <h1>TPMC IT Concern Desk</h1>
+      <h1>TPMC IT Ticketing System - Concern Desk</h1>
       <p class="sub">Submit and track IT concerns across the hospital</p>
     </div>
   </div>
@@ -834,7 +864,7 @@
       <div id="submitForm">
         <div class="row">
           <div class="field">
-            <label>Name</label>
+            <label>Name <span style="color:#c0392b;">*</span></label>
             <input id="f_requester" placeholder="Username">
           </div>
           <div class="field">
@@ -921,6 +951,11 @@
                 <option>Resolved</option>
               </select>
             </div>
+          </div>
+          <div class="field">
+            <label>Concern details</label>
+            <textarea id="e_description" placeholder="The original concern as reported"></textarea>
+            <p class="meta" style="margin-top:4px;">Use this only to correct typos or errors in the requester's original report — not to change what was actually being requested.</p>
           </div>
           <div class="row">
             <div class="field">
@@ -1472,7 +1507,7 @@ function canReplyTo(t) {
   return t.created_by !== null && t.created_by !== undefined && Number(t.created_by) === Number(currentUser.id);
 }
 
-function openSubmitModal() {
+async function openSubmitModal() {
   document.getElementById('submitForm').classList.remove('hidden');
   document.getElementById('submitSuccess').classList.add('hidden');
   document.getElementById('submitModalTitle').textContent = 'Create a ticket';
@@ -1483,14 +1518,20 @@ function openSubmitModal() {
   confirmBtn.setAttribute('onclick', 'submitTicket()');
   document.getElementById('submitView').classList.remove('hidden');
 
-  // Name and Department are prefilled from the logged-in account so the
-  // user doesn't have to retype/re-scroll every time, but both stay
-  // editable in case they need to submit on behalf of someone else or
-  // pick a different unit.
+  // Refresh the department list first, so a department created moments ago
+  // (e.g. right before this account's first login) is guaranteed to show
+  // up here instead of relying on whatever was already loaded.
+  await loadDepartments();
+
+  // Department is prefilled from the logged-in account so the user
+  // doesn't have to re-scroll every time, but stays editable in case they
+  // need to submit on behalf of a different unit. Name is intentionally
+  // left blank — shared department accounts are used by multiple people,
+  // so we can't assume who's actually typing.
   const nameEl = document.getElementById('f_requester');
   const deptEl = document.getElementById('f_department');
+  nameEl.value = '';
   if (currentUser) {
-    nameEl.value = currentUser.fullname;
     const knownDepts = Array.from(deptEl.options).map(o => o.value).filter(v => v && v !== 'Others');
     if (knownDepts.includes(currentUser.department)) {
       deptEl.value = currentUser.department;
@@ -2000,10 +2041,30 @@ async function markAllNotificationsRead() {
   } catch (e) { /* non-critical */ }
 }
 
-function openNotification(id, ticketId) {
-  markNotificationRead(id);
+async function openNotification(id, ticketId) {
   document.getElementById('notifPanel').classList.add('hidden');
+
+  // Update the badge/list immediately instead of waiting for the network
+  // round-trip below — otherwise, on a slow connection, the unread count
+  // at the top would still show the old (higher) number for a moment.
+  const n = notifications.find(x => x.id === id);
+  if (n) n.isRead = 1;
+  renderNotifications(notifications.filter(x => x.isRead == 0).length);
+
+  // Manage Users hides the dashboard (and the ticket list/detail panel
+  // inside it), so jump back to the dashboard first — otherwise the
+  // ticket we're about to open would be rendered but invisible.
+  if (!document.getElementById('usersPageView').classList.contains('hidden')) {
+    showDashboardPage();
+  }
+
   openTicketDetail(ticketId);
+
+  // Await this (instead of firing-and-forgetting) so the follow-up
+  // loadNotifications() below re-fetches AFTER the server has actually
+  // saved is_read = 1, not before — otherwise the refreshed unread count
+  // could still come back stale.
+  await markNotificationRead(id);
   loadNotifications();
 }
 
@@ -2280,6 +2341,7 @@ function confirmEditTicket() {
   document.getElementById('editFormStep').classList.remove('hidden');
 
   document.getElementById('e_status').value = t.status || 'Open';
+  document.getElementById('e_description').value = t.description || '';
   document.getElementById('e_due_date').value = toDatetimeLocalValue(t.dueDate);
   document.getElementById('e_resolved_at').value = toDatetimeLocalValue(t.resolvedAt);
   document.getElementById('e_remarks').value = t.remarks || '';
@@ -2310,6 +2372,7 @@ async function saveTicketEdit() {
   errEl.classList.add('hidden');
 
   const status = document.getElementById('e_status').value;
+  const description = document.getElementById('e_description').value.trim();
   const dueDate = document.getElementById('e_due_date').value;
   const resolvedAt = document.getElementById('e_resolved_at').value;
   const resolvedBy = status === 'Resolved' ? document.getElementById('e_resolved_by').value : '';
@@ -2320,7 +2383,7 @@ async function saveTicketEdit() {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: editingTicketId, status, due_date: dueDate, resolved_at: resolvedAt, resolved_by: resolvedBy, remarks })
+      body: JSON.stringify({ id: editingTicketId, status, description, due_date: dueDate, resolved_at: resolvedAt, resolved_by: resolvedBy, remarks })
     });
     const data = await res.json();
     if (!res.ok) {
@@ -3503,11 +3566,13 @@ let systemUsers = [];
 let pendingToggleUser = null; // { id, fullname, nextActive }
 let pendingDeleteUser = null; // { id, fullname }
 
-function showDashboardPage() {
-  document.getElementById('usersPageView').classList.add('hidden');
-  document.getElementById('dashboard').classList.remove('hidden');
-  document.getElementById('sidebarDashboardBtn').classList.add('active');
-  document.getElementById('sidebarUsersBtn').classList.remove('active');
+// Logo/title in the topbar acts as a "home" shortcut back to the
+// dashboard, matching how most apps treat their logo. No-op on the
+// login screen (sidebar is hidden then) since there's nothing to
+// navigate to yet.
+function handleLogoClick() {
+  if (document.getElementById('appSidebar').classList.contains('hidden')) return;
+  showDashboardPage();
 }
 
 function showDashboardPage() {
