@@ -865,14 +865,18 @@
         <div class="row">
           <div class="field">
             <label>Name <span style="color:#c0392b;">*</span></label>
-            <input id="f_requester" placeholder="Username">
+            <input id="f_requester">
           </div>
-          <div class="field">
+          <div class="field" id="f_department_field">
             <label>Department / Unit</label>
             <select id="f_department" onchange="toggleOtherDept()">
               <option value="">Select department...</option>
             </select>
             <input id="f_department_other" class="hidden" placeholder="Type department name" style="margin-top:8px;">
+          </div>
+          <div class="field hidden" id="f_department_readonly_wrap">
+            <label>Department / Unit</label>
+            <div id="f_department_readonly_text" style="padding:9px 10px;background:var(--surface-2);border-radius:8px;color:var(--ink-secondary);"></div>
           </div>
         </div>
         <div class="row">
@@ -1148,6 +1152,23 @@
     </div>
   </div>
 
+  <div id="bulkDeleteConfirmView" class="modal-overlay hidden" style="z-index:1100;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Delete tickets</h2>
+        <button class="ticket-detail-close" onclick="closeBulkDeleteConfirm()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="sub" id="bulkDeleteConfirmMsg"></p>
+        <p class="err hidden" id="bulkDeleteConfirmError" style="margin-top:8px;"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeBulkDeleteConfirm()">Cancel</button>
+        <button class="danger" style="width:auto;" onclick="bulkDeleteSelected()">Yes, delete</button>
+      </div>
+    </div>
+  </div>
+
   <div id="deletedView" class="modal-overlay hidden">
     <div class="modal-card" style="max-width:1150px;">
       <div class="modal-header">
@@ -1306,6 +1327,23 @@
     </div>
   </div>
 
+  <div id="purgeConfirmView" class="modal-overlay hidden" style="z-index:1100;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Delete permanently</h2>
+        <button class="ticket-detail-close" onclick="closePurgeConfirmModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="sub" id="purgeConfirmMsg"></p>
+        <p class="err hidden" id="purgeConfirmError" style="margin-top:8px;"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closePurgeConfirmModal()">Cancel</button>
+        <button class="danger" style="width:auto;" onclick="confirmPurgeTicket()">Delete permanently</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toggleDeletePermView" class="modal-overlay hidden" style="z-index:1100;">
     <div class="modal-card">
       <div class="modal-header">
@@ -1415,6 +1453,7 @@
               <th id="th-id" class="sortable-th" onclick="toggleSort('id')">ID<span class="sort-arrow" id="arrow-id"></span></th>
               <th>Summary</th>
               <th>Requester</th>
+              <th>Department</th>
               <th id="th-priority" class="sortable-th" onclick="toggleSort('priority')">Priority<span class="sort-arrow" id="arrow-priority"></span></th>
               <th>Date Requested</th>
               <th id="th-dueDate" class="sortable-th" onclick="toggleSort('dueDate')">Due date<span class="sort-arrow" id="arrow-dueDate"></span></th>
@@ -1523,13 +1562,18 @@ async function openSubmitModal() {
   // up here instead of relying on whatever was already loaded.
   await loadDepartments();
 
-  // Department is prefilled from the logged-in account so the user
-  // doesn't have to re-scroll every time, but stays editable in case they
-  // need to submit on behalf of a different unit. Name is intentionally
-  // left blank — shared department accounts are used by multiple people,
-  // so we can't assume who's actually typing.
+  // Department is prefilled from the logged-in account. IT can still edit
+  // it (e.g. logging a ticket on behalf of another department that called
+  // them), but regular department accounts get it locked/read-only — per
+  // supervisor's instruction, "whoever is logged in IS the department,"
+  // no picking a different one. Name is intentionally left blank — shared
+  // department accounts are used by multiple people, so we can't assume
+  // who's actually typing.
   const nameEl = document.getElementById('f_requester');
   const deptEl = document.getElementById('f_department');
+  const deptField = document.getElementById('f_department_field');
+  const deptReadonlyWrap = document.getElementById('f_department_readonly_wrap');
+  const deptReadonlyText = document.getElementById('f_department_readonly_text');
   nameEl.value = '';
   if (currentUser) {
     const knownDepts = Array.from(deptEl.options).map(o => o.value).filter(v => v && v !== 'Others');
@@ -1542,6 +1586,15 @@ async function openSubmitModal() {
       document.getElementById('f_department_other').value = currentUser.department || '';
     }
     toggleOtherDept();
+
+    if (isIT()) {
+      deptField.classList.remove('hidden');
+      deptReadonlyWrap.classList.add('hidden');
+    } else {
+      deptField.classList.add('hidden');
+      deptReadonlyWrap.classList.remove('hidden');
+      deptReadonlyText.textContent = currentUser.department || '—';
+    }
   }
 }
 
@@ -2885,6 +2938,7 @@ function renderTickets() {
           <td class="td-id">${t.id}</td>
           <td class="td-summary">${escapeHTML(summaryOf(t))}</td>
           <td>${escapeHTML(t.requester||'')}</td>
+          <td>${escapeHTML(t.department||'')}</td>
           <td><span class="row-badge p-${t.priority}">${t.priority}</span></td>
           <td>${requestedStr}</td>
           <td${isOverdue ? ' style="color:#c0392b;font-weight:600;"' : ''}>${dueStr}${isOverdue ? ' ⚠' : ''}</td>
@@ -3009,12 +3063,19 @@ async function bulkChangeStatusTo(status) {
 
 function confirmBulkDelete() {
   const count = bulkSelectedIds.size;
-  if (!confirm(`Are you sure you want to delete ${count} ticket${count === 1 ? '' : 's'}? They can still be restored by IT from "Recently deleted".`)) return;
-  bulkDeleteSelected();
+  document.getElementById('bulkDeleteConfirmMsg').textContent =
+    `Are you sure you want to delete ${count} ticket${count === 1 ? '' : 's'}? They can still be restored by IT from "Recently deleted".`;
+  document.getElementById('bulkDeleteConfirmError').classList.add('hidden');
+  document.getElementById('bulkDeleteConfirmView').classList.remove('hidden');
+}
+
+function closeBulkDeleteConfirm() {
+  document.getElementById('bulkDeleteConfirmView').classList.add('hidden');
 }
 
 async function bulkDeleteSelected() {
   const ids = Array.from(bulkSelectedIds);
+  const errEl = document.getElementById('bulkDeleteConfirmError');
   try {
     const res = await fetch(`${API_TICKETS}/bulk_delete.php`, {
       method: 'POST',
@@ -3024,10 +3085,12 @@ async function bulkDeleteSelected() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to delete tickets.');
+    closeBulkDeleteConfirm();
     clearBulkSelection();
     await loadTickets();
   } catch (e) {
-    alert(e.message || 'Failed to delete tickets. Please try again.');
+    errEl.textContent = e.message || 'Failed to delete tickets. Please try again.';
+    errEl.classList.remove('hidden');
   }
 }
 
@@ -3535,8 +3598,24 @@ async function performRestoreTicket() {
   await loadTickets();
 }
 
-async function purgeTicket(id) {
-  if (!confirm(`Permanently delete ticket ${id}? This cannot be undone — it will no longer be recoverable from Recently deleted.`)) return;
+let pendingPurgeId = null;
+
+function purgeTicket(id) {
+  pendingPurgeId = id;
+  document.getElementById('purgeConfirmMsg').textContent =
+    `Permanently delete ticket ${id}? This cannot be undone — it will no longer be recoverable from Recently deleted.`;
+  document.getElementById('purgeConfirmError').classList.add('hidden');
+  document.getElementById('purgeConfirmView').classList.remove('hidden');
+}
+
+function closePurgeConfirmModal() {
+  document.getElementById('purgeConfirmView').classList.add('hidden');
+  pendingPurgeId = null;
+}
+
+async function confirmPurgeTicket() {
+  if (!pendingPurgeId) return;
+  const id = pendingPurgeId;
   const errEl = document.getElementById('deletedError');
   try {
     const res = await fetch(`${API_TICKETS}/purge.php`, {
@@ -3557,6 +3636,7 @@ async function purgeTicket(id) {
     return;
   }
   errEl.classList.add('hidden');
+  closePurgeConfirmModal();
   await loadDeletedTickets();
 }
 

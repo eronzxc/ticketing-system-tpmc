@@ -3,9 +3,9 @@
 -- Requester/department linked to each department's test account via subquery.
 -- Run this AFTER create_test_dept_accounts.sql.
 --
--- NOTE: kung meron ka nang lumang test tickets na IT-2026-9001 hanggang
--- IT-2026-9007 (mula sa naunang batch), i-uncomment/i-run muna itong DELETE
--- sa ibaba bago ang mga INSERT sa baba, para maiwasan ang duplicate ID error:
+-- NOTE: if you already have old test tickets IT-2026-9001 through
+-- IT-2026-9007 (from an earlier batch), uncomment and run this DELETE
+-- first, before the INSERTs below, to avoid a duplicate ID error:
 --
 -- DELETE FROM tickets WHERE id BETWEEN 'IT-2026-9001' AND 'IT-2026-9020';
 

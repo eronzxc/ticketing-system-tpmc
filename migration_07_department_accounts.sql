@@ -8,8 +8,7 @@
 -- system can never end up with two accounts for the same department again.
 --
 -- ⚠️ IMPORTANT — DO THIS FIRST, BEFORE RUNNING THIS FILE:
--- If you currently have more than one account per department (e.g. both
--- "Krizian Janna" and another Accounting account), this ALTER TABLE will
+-- If you currently have more than one account per department this ALTER TABLE will
 -- FAIL with a duplicate-key error. Before running this:
 --   1. Open "System users" (IT-only, sidebar icon)
 --   2. For each department, keep exactly ONE account and delete the rest

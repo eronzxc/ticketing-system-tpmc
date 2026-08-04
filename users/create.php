@@ -64,6 +64,11 @@ if ($email !== '') {
 
 $hash = password_hash($password, PASSWORD_DEFAULT);
 
+// New department accounts default to NOT allowed to delete tickets
+// (can_delete_tickets = 0) — IT has to explicitly opt a department in via
+// "Manage users" > the permission toggle. Also enforced at the column's
+// own DEFAULT (see migration_13) so this stays true even if some other
+// code path ever inserts a user without setting this column.
 $stmt = $pdo->prepare(
     'INSERT INTO users (fullname, username, email, password_hash, department, is_active, can_delete_tickets) VALUES (?, ?, ?, ?, ?, 1, 0)'
 );

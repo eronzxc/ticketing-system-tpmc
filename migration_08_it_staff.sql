@@ -1,12 +1,11 @@
 -- migration_08_it_staff.sql
--- Patakbuhin sa phpMyAdmin (SQL tab, tpmc_ticketing database).
+-- Run this in phpMyAdmin (SQL tab, tpmc_ticketing database selected).
 --
--- Layunin: hiwalay na listahan ng PANGALAN ng IT technicians (hindi
--- naka-tali sa login accounts), para magamit sa "Resolved by" dropdown
--- kapag nilagyan ng specific na tao (hal. "Jonard F. Mujer") sa halip
--- na generic na "IT Department (You)". Editable ito sa app mismo via
--- "Manage IT staff", hindi na kailangan mag-code ulit para magdagdag
--- o magtanggal ng pangalan.
+-- Purpose: a separate list of IT technician NAMES (not tied to login
+-- accounts), used to populate the "Resolved by" dropdown when a specific
+-- person (e.g. "Jonard F. Mujer") should be credited instead of the
+-- generic "IT Department (You)". Editable from within the app itself via
+-- "Manage IT staff" — no code change needed to add or remove a name.
 
 USE tpmc_ticketing;
 

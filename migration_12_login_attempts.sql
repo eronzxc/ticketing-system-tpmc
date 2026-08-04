@@ -1,17 +1,17 @@
 -- migration_12_login_attempts.sql
--- Patakbuhin sa phpMyAdmin (SQL tab, tpmc_ticketing database).
+-- Run this in phpMyAdmin (SQL tab, tpmc_ticketing database selected).
 --
--- Layunin: i-track ang failed login attempts per username, para may
--- rate-limiting/lockout tayo — dati, walang limitasyon kung ilang beses
--- pwedeng subukan ang password ng isang account (brute-force risk),
--- lalo na ngayong shared/kilalang username na ang bawat department
--- (hal. "pharmacy", "laboratory") kaya isang password na lang ang
--- kailangang tuklasin.
+-- Purpose: track failed login attempts per username so we can add
+-- rate-limiting/lockout — previously there was no limit on how many
+-- times a password could be tried against an account (brute-force
+-- risk), especially now that each department uses a shared, predictable
+-- username (e.g. "pharmacy", "laboratory"), meaning an attacker only
+-- has to guess one password.
 --
--- Bawat FAILED attempt lang ang naka-log dito (hindi successful logins).
--- Kapag umabot ng 5 failed attempts ang isang username sa loob ng 15
--- minuto, naka-lock muna siya ng 15 minuto bago makapag-try ulit —
--- makikita sa auth/login.php ang buong logic.
+-- Only FAILED attempts are logged here (not successful logins). Once a
+-- username hits 5 failed attempts within 15 minutes, it gets locked for
+-- 15 minutes before it can be tried again — the full logic lives in
+-- auth/login.php.
 
 USE tpmc_ticketing;
 

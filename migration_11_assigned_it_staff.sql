@@ -1,23 +1,23 @@
 -- migration_11_assigned_it_staff.sql
--- Patakbuhin sa phpMyAdmin (SQL tab, tpmc_ticketing database).
+-- Run this in phpMyAdmin (SQL tab, tpmc_ticketing database selected).
 --
--- Layunin: yung dating "Assigned to" ay naka-tali sa users.id (login
--- account) — pero shared account na lang ang IT Department login ngayon,
--- kaya iisa lang talaga ang puwedeng "ma-assign" doon (walang paraan
--- malaman kung sinong TALAGANG technician ang humahawak). Kapareho ito
--- ng problemang inayos na natin sa "Resolved by" gamit ang hiwalay na
--- it_staff table (pangalan lang, walang sariling login).
+-- Purpose: "Assigned to" used to be tied to users.id (a login account) —
+-- but IT Department is now a single shared login, so there was really
+-- only ever one account that could be "assigned" (no way to know which
+-- ACTUAL technician was handling it). This is the same problem already
+-- solved for "Resolved by" using the separate it_staff table (just
+-- names, no login of their own).
 --
--- Ganito na ngayon ang "Assigned to":
---   - NULL / walang laman  = "IT Department" pa lang sa pangkalahatan,
---                            walang partikular na taong nakatalaga
---   - may laman (text)     = pangalan ng specific na technician mula sa
---                            "Manage IT staff" list (hal. "Jonard F. Mujer")
+-- "Assigned to" now works like this:
+--   - NULL / empty   = still generically "IT Department", no specific
+--                       person assigned yet
+--   - text value      = name of a specific technician from the
+--                       "Manage IT staff" list (e.g. "Jonard F. Mujer")
 --
--- Ang lumang column na `assigned_to` (INT, tumuturo sa users.id) ay
--- IIWAN LANG natin, hindi gagalawin/tatanggalin — hindi na ito gagamitin
--- ng bagong code, pero mababa ang cost na panatilihin ito ngayon (kagaya
--- ng naunang desisyon natin sa departments table vs users.department).
+-- The old `assigned_to` column (INT, referencing users.id) is left in
+-- place, not touched/dropped — new code no longer uses it, but the cost
+-- of keeping it around is low (same call made earlier for the
+-- departments table vs. users.department).
 
 USE tpmc_ticketing;
 

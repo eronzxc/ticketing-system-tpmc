@@ -1,7 +1,6 @@
 -- create_test_dept_accounts.sql
 -- Test accounts for every department, password = Password123 for all.
 -- Email left NULL (not required for department accounts, only IT).
--- PALITAN ang passwords bago talaga i-deploy sa totoong hospital use.
 
 USE tpmc_ticketing;
 
@@ -27,6 +26,7 @@ INSERT INTO users (fullname, username, email, password_hash, department, is_acti
   ('ICU', 'icu', NULL, '$2y$10$KZlFFCcA8P7hrpYNTy5qJeMh0f/JKhq11Y/36sT7NyHAHvLcSxiBy', 'ICU', 1),
   ('Industrial', 'industrial', NULL, '$2y$10$KZlFFCcA8P7hrpYNTy5qJeMh0f/JKhq11Y/36sT7NyHAHvLcSxiBy', 'Industrial', 1),
   ('Laboratory', 'laboratory', NULL, '$2y$10$KZlFFCcA8P7hrpYNTy5qJeMh0f/JKhq11Y/36sT7NyHAHvLcSxiBy', 'Laboratory', 1),
+  ('Marketing', 'marketing', NULL, '$2y$10$KZlFFCcA8P7hrpYNTy5qJeMh0f/JKhq11Y/36sT7NyHAHvLcSxiBy', 'Marketing', 1),
   ('Medical Records', 'medical.records', NULL, '$2y$10$KZlFFCcA8P7hrpYNTy5qJeMh0f/JKhq11Y/36sT7NyHAHvLcSxiBy', 'Medical Records', 1),
   ('NICU', 'nicu', NULL, '$2y$10$KZlFFCcA8P7hrpYNTy5qJeMh0f/JKhq11Y/36sT7NyHAHvLcSxiBy', 'NICU', 1),
   ('Outpatient Department', 'outpatient.department', NULL, '$2y$10$KZlFFCcA8P7hrpYNTy5qJeMh0f/JKhq11Y/36sT7NyHAHvLcSxiBy', 'Outpatient Department', 1),
